@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -20,14 +20,27 @@ package org.apache.curator.connection;
 
 import org.apache.curator.CuratorZookeeperClient;
 import org.apache.curator.RetryLoop;
+
 import java.util.concurrent.Callable;
 
 /**
- * Abstracts connection handling so that Curator can emulate it's old, pre 3.0.0
- * handling and update to newer handling.
+ * 提取连接处理，以便Curator可以模拟3.0.0之前的旧处理，并更新为较新的处理。
  */
-public interface ConnectionHandlingPolicy
-{
+public interface ConnectionHandlingPolicy {
+
+    enum CheckTimeoutsResult {
+        /** Do nothing */
+        NOP,
+        /** 处理新的连接字符串*/
+        NEW_CONNECTION_STRING,
+        /** reset/recreate the internal ZooKeeper connection */
+        RESET_CONNECTION,
+        /** handle a connection timeout */
+        CONNECTION_TIMEOUT,
+        /** handle a session timeout */
+        SESSION_TIMEOUT
+    }
+
     /**
      * <p>
      *     Prior to 3.0.0, Curator did not try to manage session expiration
@@ -57,8 +70,7 @@ public interface ConnectionHandlingPolicy
     int getSimulatedSessionExpirationPercent();
 
     /**
-     * Called by {@link RetryLoop#callWithRetry(CuratorZookeeperClient, Callable)} to do the work
-     * of retrying
+     * Called by {@link RetryLoop#callWithRetry(CuratorZookeeperClient, Callable)} to do the work of retrying
      *
      * @param client client
      * @param proc the procedure to retry
@@ -66,34 +78,6 @@ public interface ConnectionHandlingPolicy
      * @throws Exception errors
      */
     <T> T callWithRetry(CuratorZookeeperClient client, Callable<T> proc) throws Exception;
-
-    enum CheckTimeoutsResult
-    {
-        /**
-         * Do nothing
-         */
-        NOP,
-
-        /**
-         * handle a new connection string
-         */
-        NEW_CONNECTION_STRING,
-
-        /**
-         * reset/recreate the internal ZooKeeper connection
-         */
-        RESET_CONNECTION,
-
-        /**
-         * handle a connection timeout
-         */
-        CONNECTION_TIMEOUT,
-
-        /**
-         * handle a session timeout
-         */
-        SESSION_TIMEOUT
-    }
 
     /**
      * Check timeouts. NOTE: this method is only called when an attempt to access to the ZooKeeper instances

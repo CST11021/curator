@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -23,31 +23,47 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 
-public class CreateClientExamples
-{
-    public static CuratorFramework createSimple(String connectionString)
-    {
-        // these are reasonable arguments for the ExponentialBackoffRetry. The first
-        // retry will wait 1 second - the second will wait up to 2 seconds - the
-        // third will wait up to 4 seconds.
+public class CreateClientExamples {
+
+    /**
+     * 创建一个zk客户端
+     *
+     * @param connectionString  zk服务IP和端口
+     * @return
+     */
+    public static CuratorFramework createSimple(String connectionString) {
+
+        // 这些是ExponentialBackoffRetry的合理参数。
+        // 第一次重试将等待1秒-第二次将等待长达2秒-第三次将等待长达4秒。
         ExponentialBackoffRetry retryPolicy = new ExponentialBackoffRetry(1000, 3);
 
-        // The simplest way to get a CuratorFramework instance. This will use default values.
-        // The only required arguments are the connection string and the retry policy
+        // 获取CuratorFramework实例的最简单方法。这将使用默认值。
+        // 唯一需要的参数是连接字符串和重试策略
         return CuratorFrameworkFactory.newClient(connectionString, retryPolicy);
     }
 
-    public static CuratorFramework  createWithOptions(String connectionString, RetryPolicy retryPolicy, int connectionTimeoutMs, int sessionTimeoutMs)
-    {
-        // using the CuratorFrameworkFactory.builder() gives fine grained control
-        // over creation options. See the CuratorFrameworkFactory.Builder javadoc
-        // details
+    /**
+     * 创建一个zk客户端
+     *
+     * @param connectionString      zk服务IP和端口
+     * @param retryPolicy           重试策略
+     * @param connectionTimeoutMs   连接的超时时间
+     * @param sessionTimeoutMs      session超时时间
+     * @return
+     */
+    public static CuratorFramework createWithOptions(String connectionString, RetryPolicy retryPolicy, int connectionTimeoutMs, int sessionTimeoutMs) {
+        // 使用CuratorFrameworkFactory.builder（）可以对创建选项进行精细控制。
+        // 查看CuratorFrameworkFactory.Builder javadoc详细信息
         return CuratorFrameworkFactory.builder()
-            .connectString(connectionString)
-            .retryPolicy(retryPolicy)
-            .connectionTimeoutMs(connectionTimeoutMs)
-            .sessionTimeoutMs(sessionTimeoutMs)
-            // etc. etc.
-            .build();
+                .connectString(connectionString)
+                .retryPolicy(retryPolicy)
+                .connectionTimeoutMs(connectionTimeoutMs)
+                .sessionTimeoutMs(sessionTimeoutMs)
+                // etc. etc.
+                .build();
+    }
+
+    public static void main(String[] args) {
+        CreateClientExamples.createSimple("localhost:4181");
     }
 }

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,11 +19,13 @@
 package org.apache.curator.framework.recipes.locks;
 
 import org.apache.curator.framework.CuratorFramework;
+
 import java.util.List;
 
-public interface LockInternalsDriver extends LockInternalsSorter
-{
+public interface LockInternalsDriver extends LockInternalsSorter {
+
     public PredicateResults getsTheLock(CuratorFramework client, List<String> children, String sequenceNodeName, int maxLeases) throws Exception;
 
-    public String createsTheLock(CuratorFramework client,  String path, byte[] lockNodeBytes) throws Exception;
+    public String createsTheLock(CuratorFramework client, String path, byte[] lockNodeBytes) throws Exception;
+
 }

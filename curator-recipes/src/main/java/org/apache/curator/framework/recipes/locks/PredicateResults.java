@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -18,24 +18,20 @@
  */
 package org.apache.curator.framework.recipes.locks;
 
-public class PredicateResults
-{
-    private final boolean   getsTheLock;
-    private final String    pathToWatch;
+public class PredicateResults {
+    private final boolean getsTheLock;
+    private final String pathToWatch;
 
-    public PredicateResults(String pathToWatch, boolean getsTheLock)
-    {
+    public PredicateResults(String pathToWatch, boolean getsTheLock) {
         this.pathToWatch = pathToWatch;
         this.getsTheLock = getsTheLock;
     }
 
-    public String getPathToWatch()
-    {
+    public String getPathToWatch() {
         return pathToWatch;
     }
 
-    public boolean getsTheLock()
-    {
+    public boolean getsTheLock() {
         return getsTheLock;
     }
 }

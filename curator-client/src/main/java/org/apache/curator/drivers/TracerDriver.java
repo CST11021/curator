@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,24 +21,24 @@ package org.apache.curator.drivers;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Mechanism for timing methods and recording counters
+ *计时方法和记录计数器的机制
  */
-public interface TracerDriver
-{
+public interface TracerDriver {
+
     /**
-     * Record the given trace event
+     * 记录给定的跟踪事件
      *
      * @param name of the event
      * @param time time event took
      * @param unit time unit
      */
-    public void     addTrace(String name, long time, TimeUnit unit);
+    public void addTrace(String name, long time, TimeUnit unit);
 
     /**
-     * Add to a named counter
+     * 添加到命名计数器
      *
      * @param name name of the counter
      * @param increment amount to increment
      */
-    public void     addCount(String name, int increment);
+    public void addCount(String name, int increment);
 }

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,17 +21,15 @@ package org.apache.curator;
 /**
  * Abstracts the policy to use when retrying connections
  */
-public interface RetryPolicy
-{
+public interface RetryPolicy {
     /**
-     * Called when an operation has failed for some reason. This method should return
-     * true to make another attempt.
+     * 当操作由于某种原因而失败时调用。该方法应返回true以进行另一次尝试。
      *
      *
-     * @param retryCount the number of times retried so far (0 the first time)
-     * @param elapsedTimeMs the elapsed time in ms since the operation was attempted
-     * @param sleeper use this to sleep - DO NOT call Thread.sleep
+     * @param retryCount    到目前为止，重试的次数（第一次为0）
+     * @param elapsedTimeMs 自尝试执行操作以来经过的时间（以毫秒为单位）
+     * @param sleeper       用它来sleeper-不要调用Thread.sleep
      * @return true/false
      */
-    public boolean      allowRetry(int retryCount, long elapsedTimeMs, RetrySleeper sleeper);
+    public boolean allowRetry(int retryCount, long elapsedTimeMs, RetrySleeper sleeper);
 }

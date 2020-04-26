@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,14 +21,15 @@ package org.apache.curator.framework.recipes.locks;
 import com.google.common.base.Preconditions;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.WatcherRemoveCuratorFramework;
+
 import java.util.concurrent.TimeUnit;
 
 /**
- * A NON re-entrant mutex that works across JVMs. Uses Zookeeper to hold the lock. All processes in all JVMs that
- * use the same lock path will achieve an inter-process critical section.
+ * 可跨JVM使用的NON可重入互斥量。使用Zookeeper来保持锁。
+ * 所有JVM中使用相同锁定路径的所有进程都将达到进程间关键部分。
  */
-public class InterProcessSemaphoreMutex implements InterProcessLock
-{
+public class InterProcessSemaphoreMutex implements InterProcessLock {
+
     private final InterProcessSemaphoreV2 semaphore;
     private final WatcherRemoveCuratorFramework watcherRemoveClient;
     private volatile Lease lease;
@@ -37,24 +38,20 @@ public class InterProcessSemaphoreMutex implements InterProcessLock
      * @param client the client
      * @param path path for the lock
      */
-    public InterProcessSemaphoreMutex(CuratorFramework client, String path)
-    {
+    public InterProcessSemaphoreMutex(CuratorFramework client, String path) {
         watcherRemoveClient = client.newWatcherRemoveCuratorFramework();
         this.semaphore = new InterProcessSemaphoreV2(watcherRemoveClient, path, 1);
     }
 
     @Override
-    public void acquire() throws Exception
-    {
+    public void acquire() throws Exception {
         lease = semaphore.acquire();
     }
 
     @Override
-    public boolean acquire(long time, TimeUnit unit) throws Exception
-    {
+    public boolean acquire(long time, TimeUnit unit) throws Exception {
         Lease acquiredLease = semaphore.acquire(time, unit);
-        if ( acquiredLease == null )
-        {
+        if (acquiredLease == null) {
             return false;   // important - don't overwrite lease field if couldn't be acquired
         }
         lease = acquiredLease;
@@ -69,8 +66,7 @@ public class InterProcessSemaphoreMutex implements InterProcessLock
      *
      */
     @Override
-    public void release() throws Exception
-    {
+    public void release() throws Exception {
         Lease lease = this.lease;
         Preconditions.checkState(lease != null, "Not acquired");
 
@@ -80,8 +76,7 @@ public class InterProcessSemaphoreMutex implements InterProcessLock
     }
 
     @Override
-    public boolean isAcquiredInThisProcess()
-    {
+    public boolean isAcquiredInThisProcess() {
         return (lease != null);
     }
 }

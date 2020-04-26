@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,6 +19,7 @@
 package org.apache.curator;
 
 import org.apache.zookeeper.KeeperException;
+
 import java.util.concurrent.Callable;
 
 /**
@@ -55,15 +56,14 @@ import java.util.concurrent.Callable;
  *     and if it becomes an interface we risk {@link java.lang.IncompatibleClassChangeError}s with clients.
  * </p>
  */
-public abstract class RetryLoop
-{
+public abstract class RetryLoop {
+
     /**
      * Returns the default retry sleeper
      *
      * @return sleeper
      */
-    public static RetrySleeper getDefaultRetrySleeper()
-    {
+    public static RetrySleeper getDefaultRetrySleeper() {
         return RetryLoopImpl.getRetrySleeper();
     }
 
@@ -76,8 +76,7 @@ public abstract class RetryLoop
      * @return procedure result
      * @throws Exception any non-retriable errors
      */
-    public static <T> T callWithRetry(CuratorZookeeperClient client, Callable<T> proc) throws Exception
-    {
+    public static <T> T callWithRetry(CuratorZookeeperClient client, Callable<T> proc) throws Exception {
         return client.getConnectionHandlingPolicy().callWithRetry(client, proc);
     }
 
@@ -99,13 +98,12 @@ public abstract class RetryLoop
      * @param rc result code
      * @return true/false
      */
-    public static boolean shouldRetry(int rc)
-    {
+    public static boolean shouldRetry(int rc) {
         return (rc == KeeperException.Code.CONNECTIONLOSS.intValue()) ||
-            (rc == KeeperException.Code.OPERATIONTIMEOUT.intValue()) ||
-            (rc == KeeperException.Code.SESSIONMOVED.intValue()) ||
-            (rc == KeeperException.Code.SESSIONEXPIRED.intValue()) ||
-            (rc == -13); // KeeperException.Code.NEWCONFIGNOQUORUM.intValue()) - using hard coded value for ZK 3.4.x compatibility
+                (rc == KeeperException.Code.OPERATIONTIMEOUT.intValue()) ||
+                (rc == KeeperException.Code.SESSIONMOVED.intValue()) ||
+                (rc == KeeperException.Code.SESSIONEXPIRED.intValue()) ||
+                (rc == -13); // KeeperException.Code.NEWCONFIGNOQUORUM.intValue()) - using hard coded value for ZK 3.4.x compatibility
     }
 
     /**
@@ -114,11 +112,9 @@ public abstract class RetryLoop
      * @param exception exception to check
      * @return true/false
      */
-    public static boolean isRetryException(Throwable exception)
-    {
-        if ( exception instanceof KeeperException )
-        {
-            KeeperException keeperException = (KeeperException)exception;
+    public static boolean isRetryException(Throwable exception) {
+        if (exception instanceof KeeperException) {
+            KeeperException keeperException = (KeeperException) exception;
             return shouldRetry(keeperException.code().intValue());
         }
         return false;

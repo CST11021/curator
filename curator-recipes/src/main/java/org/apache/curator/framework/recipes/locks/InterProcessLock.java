@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,21 +21,19 @@ package org.apache.curator.framework.recipes.locks;
 import java.util.concurrent.TimeUnit;
 
 /**
- * NOTE: depending on its implementation, {@link #release()} may throw an exception if the current thread does not own the lock
+ * 注意：根据其实现，如果当前线程不拥有该锁，{@link #release()}可能会引发异常
  */
-public interface InterProcessLock
-{
+public interface InterProcessLock {
+
     /**
-     * Acquire the mutex - blocking until it's available. Each call to acquire must be balanced by a call
-     * to {@link #release()}
+     * 获取互斥锁-阻止，直到可用为止。每个获取请求必须通过调用{@link #release()}来平衡
      *
      * @throws Exception ZK errors, connection interruptions
      */
     public void acquire() throws Exception;
 
     /**
-     * Acquire the mutex - blocks until it's available or the given time expires. Each call to acquire that returns true must be balanced by a call
-     * to {@link #release()}
+     * 获取互斥锁-阻止，直到可用或给定时间到期为止。必须通过调用{@link #release()}来平衡每次获取true的获取请求
      *
      * @param time time to wait
      * @param unit time unit
@@ -45,14 +43,14 @@ public interface InterProcessLock
     public boolean acquire(long time, TimeUnit unit) throws Exception;
 
     /**
-     * Perform one release of the mutex.
+     * 执行一次互斥释放。
      *
      * @throws Exception ZK errors, interruptions
      */
     public void release() throws Exception;
 
     /**
-     * Returns true if the mutex is acquired by a thread in this JVM
+     * 如果此JVM中的线程获取了互斥锁，则返回true
      *
      * @return true/false
      */

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -24,13 +24,13 @@ import org.apache.curator.drivers.TracerDriver;
 import org.apache.curator.utils.DebugUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.util.concurrent.atomic.AtomicReference;
 
-class RetryLoopImpl extends RetryLoop
-{
+class RetryLoopImpl extends RetryLoop {
+
     private boolean isDone = false;
     private int retryCount = 0;
-
     private final Logger log = LoggerFactory.getLogger(getClass());
     private final long startTimeMs = System.currentTimeMillis();
     private final RetryPolicy retryPolicy;
@@ -38,62 +38,49 @@ class RetryLoopImpl extends RetryLoop
 
     private static final RetrySleeper sleeper = (time, unit) -> unit.sleep(time);
 
-    RetryLoopImpl(RetryPolicy retryPolicy, AtomicReference<TracerDriver> tracer)
-    {
+    RetryLoopImpl(RetryPolicy retryPolicy, AtomicReference<TracerDriver> tracer) {
         this.retryPolicy = retryPolicy;
         this.tracer = tracer;
     }
 
-    static RetrySleeper getRetrySleeper()
-    {
+    static RetrySleeper getRetrySleeper() {
         return sleeper;
     }
 
 
     @Override
-    public boolean shouldContinue()
-    {
+    public boolean shouldContinue() {
         return !isDone;
     }
 
     @Override
-    public void markComplete()
-    {
+    public void markComplete() {
         isDone = true;
     }
 
     @Override
-    public void takeException(Exception exception) throws Exception
-    {
+    public void takeException(Exception exception) throws Exception {
         boolean rethrow = true;
-        if ( RetryLoop.isRetryException(exception) )
-        {
-            if ( !Boolean.getBoolean(DebugUtils.PROPERTY_DONT_LOG_CONNECTION_ISSUES) )
-            {
+        if (RetryLoop.isRetryException(exception)) {
+            if (!Boolean.getBoolean(DebugUtils.PROPERTY_DONT_LOG_CONNECTION_ISSUES)) {
                 log.debug("Retry-able exception received", exception);
             }
 
-            if ( retryPolicy.allowRetry(retryCount++, System.currentTimeMillis() - startTimeMs, sleeper) )
-            {
+            if (retryPolicy.allowRetry(retryCount++, System.currentTimeMillis() - startTimeMs, sleeper)) {
                 new EventTrace("retries-allowed", tracer.get()).commit();
-                if ( !Boolean.getBoolean(DebugUtils.PROPERTY_DONT_LOG_CONNECTION_ISSUES) )
-                {
+                if (!Boolean.getBoolean(DebugUtils.PROPERTY_DONT_LOG_CONNECTION_ISSUES)) {
                     log.debug("Retrying operation");
                 }
                 rethrow = false;
-            }
-            else
-            {
+            } else {
                 new EventTrace("retries-disallowed", tracer.get()).commit();
-                if ( !Boolean.getBoolean(DebugUtils.PROPERTY_DONT_LOG_CONNECTION_ISSUES) )
-                {
+                if (!Boolean.getBoolean(DebugUtils.PROPERTY_DONT_LOG_CONNECTION_ISSUES)) {
                     log.debug("Retry policy not allowing retry");
                 }
             }
         }
 
-        if ( rethrow )
-        {
+        if (rethrow) {
             throw exception;
         }
     }

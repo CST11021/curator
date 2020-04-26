@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -23,28 +23,29 @@ import java.util.concurrent.TimeUnit;
 /**
  *  Expose more metrics for the operations and events
  */
-public abstract class AdvancedTracerDriver implements TracerDriver
-{
+public abstract class AdvancedTracerDriver implements TracerDriver {
+
     /**
      * Record the given trace event
      *
      * @param trace the metrics of the operation
      */
-    public abstract void     addTrace(OperationTrace trace);
+    public abstract void addTrace(OperationTrace trace);
 
     /**
      * Add to a named counter
      *
-     * @param name name of the counter
-     * @param increment amount to increment
+     * @param trace
      */
-    public abstract void     addEvent(EventTrace trace);
+    public abstract void addEvent(EventTrace trace);
 
     @Deprecated
     @Override
-    public final void     addTrace(String name, long time, TimeUnit unit) {}
+    public final void addTrace(String name, long time, TimeUnit unit) {
+    }
 
     @Deprecated
     @Override
-    public final void     addCount(String name, int increment) {}
+    public final void addCount(String name, int increment) {
+    }
 }

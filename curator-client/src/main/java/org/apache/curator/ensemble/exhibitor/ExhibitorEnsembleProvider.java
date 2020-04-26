@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -28,6 +28,7 @@ import org.apache.curator.ensemble.EnsembleProvider;
 import org.apache.curator.utils.ThreadUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
@@ -39,13 +40,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Ensemble provider that polls a cluster of Exhibitor (https://github.com/Netflix/exhibitor)
- * instances for the connection string.
- * If the set of instances should change, new ZooKeeper connections will use the new connection
- * string.
+ * Ensemble provider that polls a cluster of Exhibitor (https://github.com/Netflix/exhibitor) instances for the connection string.
+ * If the set of instances should change, new ZooKeeper connections will use the new connection string.
  */
-public class ExhibitorEnsembleProvider implements EnsembleProvider
-{
+public class ExhibitorEnsembleProvider implements EnsembleProvider {
+
     private final Logger log = LoggerFactory.getLogger(getClass());
     private final AtomicReference<Exhibitors> exhibitors = new AtomicReference<Exhibitors>();
     private final AtomicReference<Exhibitors> masterExhibitors = new AtomicReference<Exhibitors>();
@@ -64,8 +63,7 @@ public class ExhibitorEnsembleProvider implements EnsembleProvider
     private static final String VALUE_COUNT = "count";
     private static final String VALUE_SERVER_PREFIX = "server";
 
-    private enum State
-    {
+    private enum State {
         LATENT,
         STARTED,
         CLOSED
@@ -78,8 +76,7 @@ public class ExhibitorEnsembleProvider implements EnsembleProvider
      * @param pollingMs how ofter to poll the exhibitors for the list
      * @param retryPolicy retry policy to use when connecting to the exhibitors
      */
-    public ExhibitorEnsembleProvider(Exhibitors exhibitors, ExhibitorRestClient restClient, String restUriPath, int pollingMs, RetryPolicy retryPolicy)
-    {
+    public ExhibitorEnsembleProvider(Exhibitors exhibitors, ExhibitorRestClient restClient, String restUriPath, int pollingMs, RetryPolicy retryPolicy) {
         this.exhibitors.set(exhibitors);
         this.masterExhibitors.set(exhibitors);
         this.restClient = restClient;
@@ -93,8 +90,7 @@ public class ExhibitorEnsembleProvider implements EnsembleProvider
      *
      * @param newExhibitors new set
      */
-    public void     setExhibitors(Exhibitors newExhibitors)
-    {
+    public void setExhibitors(Exhibitors newExhibitors) {
         exhibitors.set(newExhibitors);
         masterExhibitors.set(newExhibitors);
     }
@@ -104,186 +100,149 @@ public class ExhibitorEnsembleProvider implements EnsembleProvider
      *
      * @throws Exception errors
      */
-    public void     pollForInitialEnsemble() throws Exception
-    {
+    public void pollForInitialEnsemble() throws Exception {
         Preconditions.checkState(state.get() == State.LATENT, "Cannot be called after start()");
         poll();
     }
 
     @Override
-    public void start() throws Exception
-    {
+    public void start() throws Exception {
         Preconditions.checkState(state.compareAndSet(State.LATENT, State.STARTED), "Cannot be started more than once");
 
-        service.scheduleWithFixedDelay
-            (
-                new Runnable()
-                {
+        service.scheduleWithFixedDelay(
+                new Runnable() {
                     @Override
-                    public void run()
-                    {
+                    public void run() {
                         poll();
                     }
                 },
                 pollingMs,
                 pollingMs,
                 TimeUnit.MILLISECONDS
-            );
+        );
     }
 
     @Override
-    public void close() throws IOException
-    {
+    public void close() throws IOException {
         Preconditions.checkState(state.compareAndSet(State.STARTED, State.CLOSED), "Already closed or has not been started");
 
         service.shutdownNow();
     }
 
     @Override
-    public String getConnectionString()
-    {
+    public String getConnectionString() {
         return connectionString.get();
     }
 
     @Override
-    public void setConnectionString(String connectionString)
-    {
+    public void setConnectionString(String connectionString) {
         log.info("setConnectionString received. Ignoring. " + connectionString);
     }
 
     @Override
-    public boolean updateServerListEnabled()
-    {
+    public boolean updateServerListEnabled() {
         return false;
     }
 
     @VisibleForTesting
-    protected void poll()
-    {
-        Exhibitors              localExhibitors = exhibitors.get();
-        Map<String, String>     values = queryExhibitors(localExhibitors);
+    protected void poll() {
+        Exhibitors localExhibitors = exhibitors.get();
+        Map<String, String> values = queryExhibitors(localExhibitors);
 
-        int                     count = getCountFromValues(values);
-        if ( count == 0 )
-        {
+        int count = getCountFromValues(values);
+        if (count == 0) {
             log.warn("0 count returned from Exhibitors. Using backup connection values.");
             values = useBackup(localExhibitors);
             count = getCountFromValues(values);
         }
 
-        if ( count > 0 )
-        {
-            int                     port = Integer.parseInt(values.get(VALUE_PORT));
-            StringBuilder           newConnectionString = new StringBuilder();
-            List<String>            newHostnames = Lists.newArrayList();
+        if (count > 0) {
+            int port = Integer.parseInt(values.get(VALUE_PORT));
+            StringBuilder newConnectionString = new StringBuilder();
+            List<String> newHostnames = Lists.newArrayList();
 
-            for ( int i = 0; i < count; ++i )
-            {
-                if ( newConnectionString.length() > 0 )
-                {
+            for (int i = 0; i < count; ++i) {
+                if (newConnectionString.length() > 0) {
                     newConnectionString.append(",");
                 }
-                String      server = values.get(VALUE_SERVER_PREFIX + i);
+                String server = values.get(VALUE_SERVER_PREFIX + i);
                 newConnectionString.append(server).append(":").append(port);
                 newHostnames.add(server);
             }
 
             String newConnectionStringValue = newConnectionString.toString();
-            if ( !newConnectionStringValue.equals(connectionString.get()) )
-            {
+            if (!newConnectionStringValue.equals(connectionString.get())) {
                 log.info(String.format("Connection string has changed. Old value (%s), new value (%s)", connectionString.get(), newConnectionStringValue));
             }
-            Exhibitors newExhibitors = new Exhibitors
-            (
-                newHostnames,
-                localExhibitors.getRestPort(),
-                new Exhibitors.BackupConnectionStringProvider()
-                {
-                    @Override
-                    public String getBackupConnectionString() throws Exception
-                    {
-                        return masterExhibitors.get().getBackupConnectionString();  // this may be overloaded by clients. Make sure there is always a method call to get the value.
-                    }
-                }
-            );
+            Exhibitors newExhibitors = new Exhibitors(
+                            newHostnames,
+                            localExhibitors.getRestPort(),
+                            new Exhibitors.BackupConnectionStringProvider() {
+                                @Override
+                                public String getBackupConnectionString() throws Exception {
+                                    return masterExhibitors.get().getBackupConnectionString();  // this may be overloaded by clients. Make sure there is always a method call to get the value.
+                                }
+                            }
+                    );
             connectionString.set(newConnectionStringValue);
             exhibitors.set(newExhibitors);
         }
     }
 
-    private int getCountFromValues(Map<String, String> values)
-    {
-        try
-        {
+    private int getCountFromValues(Map<String, String> values) {
+        try {
             return Integer.parseInt(values.get(VALUE_COUNT));
-        }
-        catch ( NumberFormatException e )
-        {
+        } catch (NumberFormatException e) {
             // ignore
         }
         return 0;
     }
 
-    private Map<String, String> useBackup(Exhibitors localExhibitors)
-    {
-        Map<String, String>     values = newValues();
+    private Map<String, String> useBackup(Exhibitors localExhibitors) {
+        Map<String, String> values = newValues();
 
-        try
-        {
-            String      backupConnectionString = localExhibitors.getBackupConnectionString();
+        try {
+            String backupConnectionString = localExhibitors.getBackupConnectionString();
 
-            int         thePort = -1;
-            int         count = 0;
-            for ( String spec : backupConnectionString.split(",") )
-            {
+            int thePort = -1;
+            int count = 0;
+            for (String spec : backupConnectionString.split(",")) {
                 spec = spec.trim();
-                String[]        parts = spec.split(":");
-                if ( parts.length == 2 )
-                {
-                    String      hostname = parts[0];
-                    int         port = Integer.parseInt(parts[1]);
-                    if ( thePort < 0 )
-                    {
+                String[] parts = spec.split(":");
+                if (parts.length == 2) {
+                    String hostname = parts[0];
+                    int port = Integer.parseInt(parts[1]);
+                    if (thePort < 0) {
                         thePort = port;
-                    }
-                    else if ( port != thePort )
-                    {
+                    } else if (port != thePort) {
                         log.warn("Inconsistent port in connection component: " + spec);
                     }
                     values.put(VALUE_SERVER_PREFIX + count, hostname);
                     ++count;
-                }
-                else
-                {
+                } else {
                     log.warn("Bad backup connection component: " + spec);
                 }
             }
             values.put(VALUE_COUNT, Integer.toString(count));
             values.put(VALUE_PORT, Integer.toString(thePort));
-        }
-        catch ( Exception e )
-        {
+        } catch (Exception e) {
             ThreadUtils.checkInterrupted(e);
             log.error("Couldn't get backup connection string", e);
         }
         return values;
     }
 
-    private Map<String, String> newValues()
-    {
-        Map<String, String>     values = Maps.newHashMap();
+    private Map<String, String> newValues() {
+        Map<String, String> values = Maps.newHashMap();
         values.put(VALUE_COUNT, "0");
         return values;
     }
 
-    private static Map<String, String> decodeExhibitorList(String str) throws UnsupportedEncodingException
-    {
-        Map<String, String>     values = Maps.newHashMap();
-        for ( String spec : str.split("&") )
-        {
-            String[]        parts = spec.split("=");
-            if ( parts.length == 2 )
-            {
+    private static Map<String, String> decodeExhibitorList(String str) throws UnsupportedEncodingException {
+        Map<String, String> values = Maps.newHashMap();
+        for (String spec : str.split("&")) {
+            String[] parts = spec.split("=");
+            if (parts.length == 2) {
                 values.put(parts[0], URLDecoder.decode(parts[1], "UTF-8"));
             }
         }
@@ -291,38 +250,27 @@ public class ExhibitorEnsembleProvider implements EnsembleProvider
         return values;
     }
 
-    private Map<String, String> queryExhibitors(Exhibitors localExhibitors)
-    {
+    private Map<String, String> queryExhibitors(Exhibitors localExhibitors) {
         Map<String, String> values = newValues();
 
-        long                    start = System.currentTimeMillis();
-        int                     retries = 0;
-        boolean                 done = false;
-        while ( !done )
-        {
+        long start = System.currentTimeMillis();
+        int retries = 0;
+        boolean done = false;
+        while (!done) {
             List<String> hostnames = Lists.newArrayList(localExhibitors.getHostnames());
-            if ( hostnames.size() == 0 )
-            {
+            if (hostnames.size() == 0) {
                 done = true;
-            }
-            else
-            {
-                String          hostname = hostnames.get(random.nextInt(hostnames.size()));
-                try
-                {
-                    String                  encoded = restClient.getRaw(hostname, localExhibitors.getRestPort(), restUriPath, MIME_TYPE);
+            } else {
+                String hostname = hostnames.get(random.nextInt(hostnames.size()));
+                try {
+                    String encoded = restClient.getRaw(hostname, localExhibitors.getRestPort(), restUriPath, MIME_TYPE);
                     values.putAll(decodeExhibitorList(encoded));
                     done = true;
-                }
-                catch ( Throwable e )
-                {
+                } catch (Throwable e) {
                     ThreadUtils.checkInterrupted(e);
-                    if ( retryPolicy.allowRetry(retries++, System.currentTimeMillis() - start, RetryLoop.getDefaultRetrySleeper()) )
-                    {
+                    if (retryPolicy.allowRetry(retries++, System.currentTimeMillis() - start, RetryLoop.getDefaultRetrySleeper())) {
                         log.warn("Couldn't get servers from Exhibitor. Retrying.", e);
-                    }
-                    else
-                    {
+                    } else {
                         log.error("Couldn't get servers from Exhibitor. Giving up.", e);
                         done = true;
                     }

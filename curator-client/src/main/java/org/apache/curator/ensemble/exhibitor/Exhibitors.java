@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -20,19 +20,19 @@ package org.apache.curator.ensemble.exhibitor;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+
 import java.util.Collection;
 
 /**
  * POJO for specifying the cluster of Exhibitor instances
  */
-public class Exhibitors
-{
+public class Exhibitors {
+
     private final Collection<String> hostnames;
     private final int restPort;
     private final BackupConnectionStringProvider backupConnectionStringProvider;
 
-    public interface BackupConnectionStringProvider
-    {
+    public interface BackupConnectionStringProvider {
         public String getBackupConnectionString() throws Exception;
     }
 
@@ -42,25 +42,21 @@ public class Exhibitors
      * @param backupConnectionStringProvider in case an Exhibitor instance can't be contacted, returns the fixed
      *                               connection string to use as a backup
      */
-    public Exhibitors(Collection<String> hostnames, int restPort, BackupConnectionStringProvider backupConnectionStringProvider)
-    {
+    public Exhibitors(Collection<String> hostnames, int restPort, BackupConnectionStringProvider backupConnectionStringProvider) {
         this.backupConnectionStringProvider = Preconditions.checkNotNull(backupConnectionStringProvider, "backupConnectionStringProvider cannot be null");
         this.hostnames = ImmutableList.copyOf(hostnames);
         this.restPort = restPort;
     }
 
-    public Collection<String> getHostnames()
-    {
+    public Collection<String> getHostnames() {
         return hostnames;
     }
 
-    public int getRestPort()
-    {
+    public int getRestPort() {
         return restPort;
     }
 
-    public String getBackupConnectionString() throws Exception
-    {
+    public String getBackupConnectionString() throws Exception {
         return backupConnectionStringProvider.getBackupConnectionString();
     }
 }
