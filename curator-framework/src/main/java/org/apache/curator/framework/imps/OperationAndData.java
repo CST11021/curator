@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -22,13 +22,13 @@ package org.apache.curator.framework.imps;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.curator.RetrySleeper;
 import org.apache.curator.framework.api.BackgroundCallback;
+
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-class OperationAndData<T> implements Delayed, RetrySleeper
-{
+class OperationAndData<T> implements Delayed, RetrySleeper {
     private static final AtomicLong nextOrdinal = new AtomicLong();
 
     private final BackgroundOperation<T> operation;
@@ -42,13 +42,11 @@ class OperationAndData<T> implements Delayed, RetrySleeper
     private final Object context;
     private final boolean connectionRequired;
 
-    interface ErrorCallback<T>
-    {
+    interface ErrorCallback<T> {
         void retriesExhausted(OperationAndData<T> operationAndData);
     }
-    
-    OperationAndData(BackgroundOperation<T> operation, T data, BackgroundCallback callback, ErrorCallback<T> errorCallback, Object context, boolean connectionRequired)
-    {
+
+    OperationAndData(BackgroundOperation<T> operation, T data, BackgroundCallback callback, ErrorCallback<T> errorCallback, Object context, boolean connectionRequired) {
         this.operation = operation;
         this.data = data;
         this.callback = callback;
@@ -58,94 +56,83 @@ class OperationAndData<T> implements Delayed, RetrySleeper
         reset();
     }
 
-    void reset()
-    {
+    void reset() {
         retryCount.set(0);
         ordinal.set(nextOrdinal.getAndIncrement());
     }
 
-    OperationAndData(BackgroundOperation<T> operation, T data, BackgroundCallback callback, ErrorCallback<T> errorCallback, Object context, Watching watching)
-    {
+    OperationAndData(BackgroundOperation<T> operation, T data, BackgroundCallback callback, ErrorCallback<T> errorCallback, Object context, Watching watching) {
         this(operation, data, callback, errorCallback, context, true);
     }
 
-    Object getContext()
-    {
+    Object getContext() {
         return context;
     }
-    
-    boolean isConnectionRequired()
-    {
+
+    boolean isConnectionRequired() {
         return connectionRequired;
     }
 
-    void callPerformBackgroundOperation() throws Exception
-    {
+    void callPerformBackgroundOperation() throws Exception {
         operation.performBackgroundOperation(this);
     }
 
-    T getData()
-    {
+    T getData() {
         return data;
     }
 
-    long getElapsedTimeMs()
-    {
+    long getElapsedTimeMs() {
         return System.currentTimeMillis() - startTimeMs;
     }
 
-    int getThenIncrementRetryCount()
-    {
+    int getThenIncrementRetryCount() {
         return retryCount.getAndIncrement();
     }
 
-    BackgroundCallback getCallback()
-    {
+    BackgroundCallback getCallback() {
         return callback;
     }
 
-    ErrorCallback<T> getErrorCallback()
-    {
+    ErrorCallback<T> getErrorCallback() {
         return errorCallback;
     }
 
     @VisibleForTesting
-    BackgroundOperation<T> getOperation()
-    {
+    BackgroundOperation<T> getOperation() {
         return operation;
     }
 
-    void clearSleep()
-    {
+    void clearSleep() {
         sleepUntilTimeMs.set(0);
     }
 
+    /**
+     * sleep给予时间
+     *
+     * @param time time
+     * @param unit time unit
+     * @throws InterruptedException
+     */
     @Override
-    public void sleepFor(long time, TimeUnit unit) throws InterruptedException
-    {
+    public void sleepFor(long time, TimeUnit unit) throws InterruptedException {
         sleepUntilTimeMs.set(System.currentTimeMillis() + TimeUnit.MILLISECONDS.convert(time, unit));
     }
 
     @Override
-    public long getDelay(TimeUnit unit)
-    {
+    public long getDelay(TimeUnit unit) {
         return unit.convert(sleepUntilTimeMs.get() - System.currentTimeMillis(), TimeUnit.MILLISECONDS);
     }
 
     @Override
-    public int compareTo(Delayed o)
-    {
-        if ( o == this )
-        {
+    public int compareTo(Delayed o) {
+        if (o == this) {
             return 0;
         }
 
         long diff = getDelay(TimeUnit.MILLISECONDS) - o.getDelay(TimeUnit.MILLISECONDS);
-        if ( diff == 0 )
-        {
-            if ( o instanceof OperationAndData )
-            {
-                diff = ordinal.get() - ((OperationAndData)o).ordinal.get();
+        if (diff == 0) {
+            if (o instanceof OperationAndData) {
+                diff = ordinal.get() - ((OperationAndData) o).ordinal.get();
             }
         }
 

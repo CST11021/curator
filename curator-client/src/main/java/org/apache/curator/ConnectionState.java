@@ -45,21 +45,30 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 class ConnectionState implements Watcher, Closeable {
+
+    private static final Logger log = LoggerFactory.getLogger(ConnectionState.class);
+
     private static final int MAX_BACKGROUND_EXCEPTIONS = 10;
     private static final boolean LOG_EVENTS = Boolean.getBoolean(DebugUtils.PROPERTY_LOG_EVENTS);
-    private static final Logger log = LoggerFactory.getLogger(ConnectionState.class);
+
     private final HandleHolder handleHolder;
+    /** 表示该zk客户端是否已经连接上了zk服务 */
     private final AtomicBoolean isConnected = new AtomicBoolean(false);
     private final AtomicInteger lastNegotiatedSessionTimeoutMs = new AtomicInteger(0);
+    /** 用于提供ZooKeeper连接字符串等信息 */
     private final EnsembleProvider ensembleProvider;
+    /** session超时时间 */
     private final int sessionTimeoutMs;
+    /** 连接超时时间 */
     private final int connectionTimeoutMs;
     private final AtomicReference<TracerDriver> tracer;
     private final ConnectionHandlingPolicy connectionHandlingPolicy;
     private final Queue<Exception> backgroundExceptions = new ConcurrentLinkedQueue<Exception>();
     private final Queue<Watcher> parentWatchers = new ConcurrentLinkedQueue<Watcher>();
     private final AtomicLong instanceIndex = new AtomicLong();
+    /** 表示该客户端连接上了zk服务器的开始时间 */
     private volatile long connectionStartMs = 0;
+
 
     ConnectionState(ZookeeperFactory zookeeperFactory, EnsembleProvider ensembleProvider, int sessionTimeoutMs, int connectionTimeoutMs, Watcher parentWatcher, AtomicReference<TracerDriver> tracer, boolean canBeReadOnly, ConnectionHandlingPolicy connectionHandlingPolicy) {
         this.ensembleProvider = ensembleProvider;
@@ -73,6 +82,7 @@ class ConnectionState implements Watcher, Closeable {
 
         handleHolder = new HandleHolder(zookeeperFactory, this, ensembleProvider, sessionTimeoutMs, canBeReadOnly);
     }
+
 
     ZooKeeper getZooKeeper() throws Exception {
         if (SessionFailRetryLoop.sessionForThreadHasFailed()) {

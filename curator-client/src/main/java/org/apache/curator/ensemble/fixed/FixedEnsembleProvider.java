@@ -44,7 +44,6 @@ public class FixedEnsembleProvider implements EnsembleProvider {
     public FixedEnsembleProvider(String connectionString) {
         this(connectionString, true);
     }
-
     /**
      * The connection string to use
      *

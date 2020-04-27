@@ -40,8 +40,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Ensemble provider that polls a cluster of Exhibitor (https://github.com/Netflix/exhibitor) instances for the connection string.
- * If the set of instances should change, new ZooKeeper connections will use the new connection string.
+ * 集成提供程序，用于轮询Exhibitor（https://github.com/Netflix/exhibitor）实例群集以获取连接字符串。
+ * 如果实例集应更改，则新的ZooKeeper连接将使用新的连接字符串。
  */
 public class ExhibitorEnsembleProvider implements EnsembleProvider {
 

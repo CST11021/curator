@@ -87,22 +87,25 @@ public class CuratorFrameworkImpl implements CuratorFramework {
     private final SchemaSet schemaSet;
     private final boolean zk34CompatibilityMode;
     private final Executor runSafeService;
-
     private volatile ExecutorService executorService;
     private final AtomicBoolean logAsErrorConnectionErrors = new AtomicBoolean(false);
-
     private static final boolean LOG_ALL_CONNECTION_ISSUES_AS_ERROR_LEVEL = !Boolean.getBoolean(DebugUtils.PROPERTY_LOG_ONLY_FIRST_CONNECTION_ISSUE_AS_ERROR_LEVEL);
+    volatile DebugBackgroundListener debugListener = null;
+    @VisibleForTesting
+    public volatile UnhandledErrorListener debugUnhandledErrorListener = null;
+    private final AtomicReference<CuratorFrameworkState> state;
+
 
     interface DebugBackgroundListener {
         void listen(OperationAndData<?> data);
     }
 
-    volatile DebugBackgroundListener debugListener = null;
-    @VisibleForTesting
-    public volatile UnhandledErrorListener debugUnhandledErrorListener = null;
 
-    private final AtomicReference<CuratorFrameworkState> state;
-
+    /**
+     * 构造器
+     *
+     * @param builder
+     */
     public CuratorFrameworkImpl(CuratorFrameworkFactory.Builder builder) {
         ZookeeperFactory localZookeeperFactory = makeZookeeperFactory(builder.getZookeeperFactory());
         this.client = new CuratorZookeeperClient
@@ -115,7 +118,13 @@ public class CuratorFrameworkImpl implements CuratorFramework {
                         new Watcher() {
                             @Override
                             public void process(WatchedEvent watchedEvent) {
-                                CuratorEvent event = new CuratorEventImpl(CuratorFrameworkImpl.this, CuratorEventType.WATCHED, watchedEvent.getState().getIntValue(), unfixForNamespace(watchedEvent.getPath()), null, null, null, null, null, watchedEvent, null, null);
+                                CuratorEvent event = new CuratorEventImpl(
+                                        CuratorFrameworkImpl.this,
+                                        CuratorEventType.WATCHED,
+                                        watchedEvent.getState().getIntValue(),
+                                        unfixForNamespace(watchedEvent.getPath()),
+                                        null, null, null, null, null,
+                                        watchedEvent, null, null);
                                 processEvent(event);
                             }
                         },
@@ -140,19 +149,18 @@ public class CuratorFrameworkImpl implements CuratorFramework {
         connectionStateErrorPolicy = Preconditions.checkNotNull(builder.getConnectionStateErrorPolicy(), "errorPolicy cannot be null");
         schemaSet = Preconditions.checkNotNull(builder.getSchemaSet(), "schemaSet cannot be null");
         zk34CompatibilityMode = builder.isZk34CompatibilityMode();
-
         byte[] builderDefaultData = builder.getDefaultData();
         defaultData = (builderDefaultData != null) ? Arrays.copyOf(builderDefaultData, builderDefaultData.length) : new byte[0];
         authInfos = buildAuths(builder);
-
         failedDeleteManager = new FailedDeleteManager(this);
         failedRemoveWatcherManager = new FailedRemoveWatchManager(this);
         namespaceFacadeCache = new NamespaceFacadeCache(this);
-
         ensembleTracker = zk34CompatibilityMode ? null : new EnsembleTracker(this, builder.getEnsembleProvider());
-
         runSafeService = makeRunSafeService(builder);
     }
+
+
+
 
     private Executor makeRunSafeService(CuratorFrameworkFactory.Builder builder) {
         if (builder.getRunSafeService() != null) {
@@ -188,6 +196,11 @@ public class CuratorFrameworkImpl implements CuratorFramework {
         return (ensembleTracker != null) ? ensembleTracker.getCurrentConfig() : null;
     }
 
+    /**
+     * 用于创建原生zk客户端（即ZooKeeper实例）的工厂
+     * @param actualZookeeperFactory
+     * @return
+     */
     private ZookeeperFactory makeZookeeperFactory(final ZookeeperFactory actualZookeeperFactory) {
         return new ZookeeperFactory() {
             @Override

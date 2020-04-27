@@ -27,15 +27,24 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * 循环重试的实现
+ */
 class RetryLoopImpl extends RetryLoop {
 
-    private boolean isDone = false;
-    private int retryCount = 0;
     private final Logger log = LoggerFactory.getLogger(getClass());
-    private final long startTimeMs = System.currentTimeMillis();
-    private final RetryPolicy retryPolicy;
-    private final AtomicReference<TracerDriver> tracer;
 
+    /** 表示本次重试是否成功 */
+    private boolean isDone = false;
+    /** 用于统计重试的次数 */
+    private int retryCount = 0;
+    /** 表示开始时间 */
+    private final long startTimeMs = System.currentTimeMillis();
+    /** 重试策略，比如每次间隔多次时间重试，最多重试多少次，最大重试时间间隔等 */
+    private final RetryPolicy retryPolicy;
+    /** 用于日志追踪 */
+    private final AtomicReference<TracerDriver> tracer;
+    /** 用于sleep给定的时间 */
     private static final RetrySleeper sleeper = (time, unit) -> unit.sleep(time);
 
     RetryLoopImpl(RetryPolicy retryPolicy, AtomicReference<TracerDriver> tracer) {
@@ -43,21 +52,39 @@ class RetryLoopImpl extends RetryLoop {
         this.tracer = tracer;
     }
 
+    /**
+     * 获取让线程休眠的实现
+     *
+     * @return
+     */
     static RetrySleeper getRetrySleeper() {
         return sleeper;
     }
 
-
+    /**
+     * 是否继续重试
+     *
+     * @return
+     */
     @Override
     public boolean shouldContinue() {
         return !isDone;
     }
 
+    /**
+     * 标记本次重试是否成功
+     */
     @Override
     public void markComplete() {
         isDone = true;
     }
 
+    /**
+     * 在此处传递任何捕获的异常
+     *
+     * @param exception the exception
+     * @throws Exception if not retry-able or the retry policy returned negative
+     */
     @Override
     public void takeException(Exception exception) throws Exception {
         boolean rethrow = true;

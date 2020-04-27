@@ -21,12 +21,12 @@ package org.apache.curator;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Abstraction for retry policies to sleep
+ * 重试策略休眠的抽象
  */
 public interface RetrySleeper {
 
     /**
-     * Sleep for the given time
+     * sleep给予时间
      *
      * @param time time
      * @param unit time unit

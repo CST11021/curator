@@ -58,6 +58,8 @@ public class CuratorZookeeperClient implements Closeable {
     private final AtomicReference<TracerDriver> tracer = new AtomicReference<TracerDriver>(new DefaultTracerDriver());
     private final ConnectionHandlingPolicy connectionHandlingPolicy;
 
+    // 构造器
+
     /**
      *
      * @param connectString list of servers to connect to
@@ -144,15 +146,16 @@ public class CuratorZookeeperClient implements Closeable {
         setRetryPolicy(retryPolicy);
     }
 
+
+
     /**
-     * Return the managed ZK instance.
+     * 获取原生的zk客户端
      *
      * @return client the client
      * @throws Exception if the connection timeout has elapsed or an exception occurs in a background process
      */
     public ZooKeeper getZooKeeper() throws Exception {
         Preconditions.checkState(started.get(), "Client is not started");
-
         return state.getZooKeeper();
     }
 

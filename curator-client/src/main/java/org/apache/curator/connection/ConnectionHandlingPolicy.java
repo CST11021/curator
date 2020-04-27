@@ -70,7 +70,7 @@ public interface ConnectionHandlingPolicy {
     int getSimulatedSessionExpirationPercent();
 
     /**
-     * Called by {@link RetryLoop#callWithRetry(CuratorZookeeperClient, Callable)} to do the work of retrying
+     * 由{@link RetryLoop#callWithRetry(CuratorZookeeperClient, Callable)}调用以执行重试工作
      *
      * @param client client
      * @param proc the procedure to retry
@@ -80,11 +80,9 @@ public interface ConnectionHandlingPolicy {
     <T> T callWithRetry(CuratorZookeeperClient client, Callable<T> proc) throws Exception;
 
     /**
-     * Check timeouts. NOTE: this method is only called when an attempt to access to the ZooKeeper instances
-     * is made and the connection has not completed.
+     * 检查超时，注意：仅在尝试访问ZooKeeper实例且连接未完成时才调用此方法。
      *
-     * @param getNewConnectionString proc to call to check if there is a new connection string. Important: the internal state is cleared after
-     *                               this is called so you MUST handle the new connection string if non null is returned
+     * @param getNewConnectionString proc to call to check if there is a new connection string. Important: the internal state is cleared after this is called so you MUST handle the new connection string if non null is returned
      * @param connectionStartMs the epoch/ms time that the connection was first initiated
      * @param sessionTimeoutMs the configured/negotiated session timeout in milliseconds
      * @param connectionTimeoutMs the configured connection timeout in milliseconds

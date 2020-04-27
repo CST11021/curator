@@ -66,14 +66,18 @@ public class CuratorFrameworkFactory {
     private static final int DEFAULT_SESSION_TIMEOUT_MS = Integer.getInteger("curator-default-session-timeout", 60 * 1000);
     /** zk客户端连接到zk服务的连接超时时间，这里是15秒 */
     private static final int DEFAULT_CONNECTION_TIMEOUT_MS = Integer.getInteger("curator-default-connection-timeout", 15 * 1000);
-    /** 获取本地IP地址 */
+    /** 表示本地IP地址，这里以字节的形式保存 */
     private static final byte[] LOCAL_ADDRESS = getLocalAddress();
 
     private static final CompressionProvider DEFAULT_COMPRESSION_PROVIDER = new GzipCompressionProvider();
     private static final DefaultZookeeperFactory DEFAULT_ZOOKEEPER_FACTORY = new DefaultZookeeperFactory();
     private static final DefaultACLProvider DEFAULT_ACL_PROVIDER = new DefaultACLProvider();
+    /** 如果连接将在 inactiveThresholdMs 毫秒不活动，将会自动关闭，默认闲置3分钟后，连接将关闭。 */
     private static final long DEFAULT_INACTIVE_THRESHOLD_MS = (int) TimeUnit.MINUTES.toMillis(3);
     private static final int DEFAULT_CLOSE_WAIT_MS = (int) TimeUnit.SECONDS.toMillis(1);
+
+    private CuratorFrameworkFactory() {
+    }
 
     /**
      * Return a new builder that builds a CuratorFramework
@@ -94,7 +98,6 @@ public class CuratorFrameworkFactory {
     public static CuratorFramework newClient(String connectString, RetryPolicy retryPolicy) {
         return newClient(connectString, DEFAULT_SESSION_TIMEOUT_MS, DEFAULT_CONNECTION_TIMEOUT_MS, retryPolicy);
     }
-
     /**
      * Create a new client
      *
@@ -114,7 +117,7 @@ public class CuratorFrameworkFactory {
     }
 
     /**
-     * Return the local address as bytes that can be used as a node payload
+     * 将本地ip转为字节返回
      *
      * @return local address bytes
      */
@@ -137,6 +140,7 @@ public class CuratorFrameworkFactory {
         private int maxCloseWaitMs = DEFAULT_CLOSE_WAIT_MS;
         private RetryPolicy retryPolicy;
         private ThreadFactory threadFactory = null;
+        /** 隔离命名空间，对应zk的chroot */
         private String namespace;
         private List<AuthInfo> authInfos = null;
         private byte[] defaultData = LOCAL_ADDRESS;
@@ -153,59 +157,56 @@ public class CuratorFrameworkFactory {
         private Executor runSafeService = null;
         private ConnectionStateListenerManagerFactory connectionStateListenerManagerFactory = ConnectionStateListenerManagerFactory.standard;
 
+
+        private Builder() {
+        }
+
+
         /**
-         * Apply the current values and build a new CuratorFramework
+         * 应用当前值并构建一个新的CuratorFramework
          *
          * @return new CuratorFramework
          */
         public CuratorFramework build() {
             return new CuratorFrameworkImpl(this);
         }
-
         /**
-         * Apply the current values and build a new temporary CuratorFramework. Temporary
-         * CuratorFramework instances are meant for single requests to ZooKeeper ensembles
-         * over a failure prone network such as a WAN. The APIs available from {@link CuratorTempFramework}
-         * are limited. Further, the connection will be closed after 3 minutes of inactivity.
+         * 应用当前值并构建一个新的临时CuratorFramework，此外，闲置3分钟后，连接将关闭。
          *
          * @return temp instance
          */
         public CuratorTempFramework buildTemp() {
             return buildTemp(DEFAULT_INACTIVE_THRESHOLD_MS, TimeUnit.MILLISECONDS);
         }
-
         /**
-         * Apply the current values and build a new temporary CuratorFramework. Temporary
-         * CuratorFramework instances are meant for single requests to ZooKeeper ensembles
-         * over a failure prone network such as a WAN. The APIs available from {@link CuratorTempFramework}
-         * are limited. Further, the connection will be closed after <code>inactiveThresholdMs</code> milliseconds of inactivity.
+         * 应用当前值并构建一个新的临时CuratorFramework。
+         * 临时CuratorFramework实例旨在通过易发生故障的网络（例如WAN）向ZooKeeper集合发出单个请求。
+         * {@link CuratorTempFramework}提供的API是受限制的。
+         * 此外，连接将在 inactiveThresholdMs 毫秒不活动后关闭。
          *
-         * @param inactiveThreshold number of milliseconds of inactivity to cause connection close
-         * @param unit              threshold unit
+         * @param inactiveThreshold 导致连接关闭的非活动毫秒数
+         * @param unit              阈值单位
          * @return temp instance
          */
         public CuratorTempFramework buildTemp(long inactiveThreshold, TimeUnit unit) {
             return new CuratorTempFrameworkImpl(this, unit.toMillis(inactiveThreshold));
         }
 
+
+
         /**
-         * Add connection authorization
+         * 添加连接授权，对该方法的后续调用将覆盖先前的调用。
          *
-         * Subsequent calls to this method overwrite the prior calls.
-         *
-         * @param scheme the scheme
+         * @param scheme 方案
          * @param auth   the auth bytes
          * @return this
          */
         public Builder authorization(String scheme, byte[] auth) {
             return authorization(ImmutableList.of(new AuthInfo(scheme, (auth != null) ? Arrays.copyOf(auth, auth.length) : null)));
         }
-
         /**
-         * Add connection authorization. The supplied authInfos are appended to those added via call to
-         * {@link #authorization(java.lang.String, byte[])} for backward compatibility.
-         * <p/>
-         * Subsequent calls to this method overwrite the prior calls.
+         * 添加连接授权。所提供的authInfo被附加到通过向{@link #authorization(String, byte[])}的调用而添加的authInfo上，以实现向后兼容。
+         * 对该方法的后续调用将覆盖先前的调用。
          *
          * @param authInfos list of {@link AuthInfo} objects with scheme and auth
          * @return this
@@ -214,10 +215,8 @@ public class CuratorFrameworkFactory {
             this.authInfos = ImmutableList.copyOf(authInfos);
             return this;
         }
-
         /**
-         * Set the list of servers to connect to. IMPORTANT: use either this or {@link #ensembleProvider(EnsembleProvider)}
-         * but not both.
+         * 设置要连接的服务器列表。重要说明：请使用this或{@link #ensembleProvider(EnsembleProvider)}，但不能两者都使用。
          *
          * @param connectString list of servers to connect to
          * @return this
@@ -226,10 +225,8 @@ public class CuratorFrameworkFactory {
             ensembleProvider = new FixedEnsembleProvider(connectString);
             return this;
         }
-
         /**
-         * Set the list ensemble provider. IMPORTANT: use either this or {@link #connectString(String)}
-         * but not both.
+         * 设置列表集合提供程序。重要说明：请使用this或{@link #connectString(String)}，但不能两者都使用。
          *
          * @param ensembleProvider the ensemble provider to use
          * @return this
@@ -238,11 +235,9 @@ public class CuratorFrameworkFactory {
             this.ensembleProvider = ensembleProvider;
             return this;
         }
-
         /**
-         * Sets the data to use when {@link PathAndBytesable#forPath(String)} is used.
-         * This is useful for debugging purposes. For example, you could set this to be the IP of the
-         * client.
+         * 设置使用{@link PathAndBytesable#forPath(String)}时要使用的数据。
+         * 这对于调试目的很有用。例如，您可以将其设置为客户端的IP。
          *
          * @param defaultData new default data to use
          * @return this
@@ -251,11 +246,9 @@ public class CuratorFrameworkFactory {
             this.defaultData = (defaultData != null) ? Arrays.copyOf(defaultData, defaultData.length) : null;
             return this;
         }
-
         /**
-         * As ZooKeeper is a shared space, users of a given cluster should stay within
-         * a pre-defined namespace. If a namespace is set here, all paths will get pre-pended
-         * with the namespace
+         * 由于ZooKeeper是一个共享空间，因此给定群集的用户应保留在预定义的名称空间内。
+         * 如果在此处设置了名称空间，则所有路径都将在名称空间之前
          *
          * @param namespace the namespace
          * @return this
@@ -264,8 +257,8 @@ public class CuratorFrameworkFactory {
             this.namespace = namespace;
             return this;
         }
-
         /**
+         * 设置session的超时时间
          * @param sessionTimeoutMs session timeout
          * @return this
          */
@@ -273,8 +266,8 @@ public class CuratorFrameworkFactory {
             this.sessionTimeoutMs = sessionTimeoutMs;
             return this;
         }
-
         /**
+         * 设置连接的超时时间
          * @param connectionTimeoutMs connection timeout
          * @return this
          */
@@ -282,7 +275,6 @@ public class CuratorFrameworkFactory {
             this.connectionTimeoutMs = connectionTimeoutMs;
             return this;
         }
-
         /**
          * @param maxCloseWaitMs time to wait during close to join background threads
          * @return this
@@ -291,7 +283,6 @@ public class CuratorFrameworkFactory {
             this.maxCloseWaitMs = maxCloseWaitMs;
             return this;
         }
-
         /**
          * @param retryPolicy retry policy to use
          * @return this
@@ -300,7 +291,6 @@ public class CuratorFrameworkFactory {
             this.retryPolicy = retryPolicy;
             return this;
         }
-
         /**
          * @param threadFactory thread factory used to create Executor Services
          * @return this
@@ -309,7 +299,6 @@ public class CuratorFrameworkFactory {
             this.threadFactory = threadFactory;
             return this;
         }
-
         /**
          * @param compressionProvider the compression provider
          * @return this
@@ -318,7 +307,6 @@ public class CuratorFrameworkFactory {
             this.compressionProvider = compressionProvider;
             return this;
         }
-
         /**
          * @param zookeeperFactory the zookeeper factory to use
          * @return this
@@ -327,7 +315,6 @@ public class CuratorFrameworkFactory {
             this.zookeeperFactory = zookeeperFactory;
             return this;
         }
-
         /**
          * @param aclProvider a provider for ACLs
          * @return this
@@ -336,7 +323,6 @@ public class CuratorFrameworkFactory {
             this.aclProvider = aclProvider;
             return this;
         }
-
         /**
          * @param canBeReadOnly if true, allow ZooKeeper client to enter
          *                      read only mode in case of a network partition. See
@@ -348,7 +334,6 @@ public class CuratorFrameworkFactory {
             this.canBeReadOnly = canBeReadOnly;
             return this;
         }
-
         /**
          * By default, Curator uses {@link CreateBuilder#creatingParentContainersIfNeeded()}
          * if the ZK JAR supports {@link CreateMode#CONTAINER}. Call this method to turn off this behavior.
@@ -359,7 +344,6 @@ public class CuratorFrameworkFactory {
             this.useContainerParentsIfAvailable = false;
             return this;
         }
-
         /**
          * Set the error policy to use. The default is {@link StandardConnectionStateErrorPolicy}
          *
@@ -371,7 +355,6 @@ public class CuratorFrameworkFactory {
             this.connectionStateErrorPolicy = connectionStateErrorPolicy;
             return this;
         }
-
         /**
          * If mode is true, create a ZooKeeper 3.4.x compatible client. IMPORTANT: If the client
          * library used is ZooKeeper 3.4.x <code>zk34CompatibilityMode</code> is enabled by default.
@@ -384,7 +367,6 @@ public class CuratorFrameworkFactory {
             this.zk34CompatibilityMode = mode;
             return this;
         }
-
         /**
          * Set a timeout for {@link CuratorZookeeperClient#close(int)}  }.
          * The default is 0, which means that this feature is disabled.
@@ -397,7 +379,6 @@ public class CuratorFrameworkFactory {
             this.waitForShutdownTimeoutMs = waitForShutdownTimeoutMs;
             return this;
         }
-
         /**
          * <p>
          *     Change the connection handling policy. The default policy is {@link StandardConnectionHandlingPolicy}.
@@ -441,7 +422,6 @@ public class CuratorFrameworkFactory {
             this.connectionHandlingPolicy = connectionHandlingPolicy;
             return this;
         }
-
         /**
          * Add an enforced schema set
          *
@@ -453,7 +433,6 @@ public class CuratorFrameworkFactory {
             this.schemaSet = schemaSet;
             return this;
         }
-
         /**
          * Curator (and user) recipes will use this executor to call notifyAll
          * and other blocking calls that might normally block ZooKeeper's event thread.
@@ -469,7 +448,6 @@ public class CuratorFrameworkFactory {
             this.runSafeService = runSafeService;
             return this;
         }
-
         /**
          * Sets the connection state listener manager factory. For example,
          * you can set {@link org.apache.curator.framework.state.ConnectionStateListenerManagerFactory#circuitBreaking(org.apache.curator.RetryPolicy)}
@@ -483,73 +461,9 @@ public class CuratorFrameworkFactory {
             return this;
         }
 
-        public Executor getRunSafeService() {
-            return runSafeService;
-        }
 
-        public ACLProvider getAclProvider() {
-            return aclProvider;
-        }
 
-        public ZookeeperFactory getZookeeperFactory() {
-            return zookeeperFactory;
-        }
-
-        public CompressionProvider getCompressionProvider() {
-            return compressionProvider;
-        }
-
-        public ThreadFactory getThreadFactory() {
-            return threadFactory;
-        }
-
-        public EnsembleProvider getEnsembleProvider() {
-            return ensembleProvider;
-        }
-
-        public int getSessionTimeoutMs() {
-            return sessionTimeoutMs;
-        }
-
-        public int getConnectionTimeoutMs() {
-            return connectionTimeoutMs;
-        }
-
-        public int getWaitForShutdownTimeoutMs() {
-            return waitForShutdownTimeoutMs;
-        }
-
-        public int getMaxCloseWaitMs() {
-            return maxCloseWaitMs;
-        }
-
-        public RetryPolicy getRetryPolicy() {
-            return retryPolicy;
-        }
-
-        public String getNamespace() {
-            return namespace;
-        }
-
-        public boolean useContainerParentsIfAvailable() {
-            return useContainerParentsIfAvailable;
-        }
-
-        public ConnectionStateErrorPolicy getConnectionStateErrorPolicy() {
-            return connectionStateErrorPolicy;
-        }
-
-        public ConnectionHandlingPolicy getConnectionHandlingPolicy() {
-            return connectionHandlingPolicy;
-        }
-
-        public SchemaSet getSchemaSet() {
-            return schemaSet;
-        }
-
-        public boolean isZk34CompatibilityMode() {
-            return zk34CompatibilityMode;
-        }
+        // getter ...
 
         @Deprecated
         public String getAuthScheme() {
@@ -568,7 +482,6 @@ public class CuratorFrameworkFactory {
                 }
             }
         }
-
         @Deprecated
         public byte[] getAuthValue() {
             int qty = (authInfos != null) ? authInfos.size() : 0;
@@ -587,27 +500,72 @@ public class CuratorFrameworkFactory {
                 }
             }
         }
-
+        public Executor getRunSafeService() {
+            return runSafeService;
+        }
+        public ACLProvider getAclProvider() {
+            return aclProvider;
+        }
+        public ZookeeperFactory getZookeeperFactory() {
+            return zookeeperFactory;
+        }
+        public CompressionProvider getCompressionProvider() {
+            return compressionProvider;
+        }
+        public ThreadFactory getThreadFactory() {
+            return threadFactory;
+        }
+        public EnsembleProvider getEnsembleProvider() {
+            return ensembleProvider;
+        }
+        public int getSessionTimeoutMs() {
+            return sessionTimeoutMs;
+        }
+        public int getConnectionTimeoutMs() {
+            return connectionTimeoutMs;
+        }
+        public int getWaitForShutdownTimeoutMs() {
+            return waitForShutdownTimeoutMs;
+        }
+        public int getMaxCloseWaitMs() {
+            return maxCloseWaitMs;
+        }
+        public RetryPolicy getRetryPolicy() {
+            return retryPolicy;
+        }
+        public String getNamespace() {
+            return namespace;
+        }
+        public boolean useContainerParentsIfAvailable() {
+            return useContainerParentsIfAvailable;
+        }
+        public ConnectionStateErrorPolicy getConnectionStateErrorPolicy() {
+            return connectionStateErrorPolicy;
+        }
+        public ConnectionHandlingPolicy getConnectionHandlingPolicy() {
+            return connectionHandlingPolicy;
+        }
+        public SchemaSet getSchemaSet() {
+            return schemaSet;
+        }
+        public boolean isZk34CompatibilityMode() {
+            return zk34CompatibilityMode;
+        }
         public List<AuthInfo> getAuthInfos() {
             return authInfos;
         }
-
         public byte[] getDefaultData() {
             return defaultData;
         }
-
         public boolean canBeReadOnly() {
             return canBeReadOnly;
         }
-
         public ConnectionStateListenerManagerFactory getConnectionStateListenerManagerFactory() {
             return connectionStateListenerManagerFactory;
         }
 
-        private Builder() {
-        }
+
     }
 
-    private CuratorFrameworkFactory() {
-    }
+
 }

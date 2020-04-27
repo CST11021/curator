@@ -23,14 +23,9 @@ import org.apache.zookeeper.KeeperException;
 import java.util.concurrent.Callable;
 
 /**
- * <p>Mechanism to perform an operation on Zookeeper that is safe against
- * disconnections and "recoverable" errors.</p>
+ * 在Zookeeper上执行可防止断开连接和“可恢复”错误的操作的机制。
  *
- * <p>
- * If an exception occurs during the operation, the RetryLoop will process it,
- * check with the current retry policy and either attempt to reconnect or re-throw
- * the exception
- * </p>
+ * 如果操作期间发生异常，则RetryLoop将对其进行处理，并检查当前的重试策略，然后尝试重新连接或重新引发该异常。
  *
  * Canonical usage:<br>
  * <pre>
@@ -59,7 +54,7 @@ import java.util.concurrent.Callable;
 public abstract class RetryLoop {
 
     /**
-     * Returns the default retry sleeper
+     * 获取重试时，线程休眠的实现
      *
      * @return sleeper
      */
@@ -68,7 +63,7 @@ public abstract class RetryLoop {
     }
 
     /**
-     * Convenience utility: creates a retry loop calling the given proc and retrying if needed
+     * 便利实用程序：创建重试循环，调用给定proc并在需要时重试
      *
      * @param client Zookeeper
      * @param proc procedure to call with retry
@@ -81,19 +76,19 @@ public abstract class RetryLoop {
     }
 
     /**
-     * If true is returned, make an attempt at the operation
+     * 是否继续重试
      *
      * @return true/false
      */
     public abstract boolean shouldContinue();
 
     /**
-     * Call this when your operation has successfully completed
+     * 标记本次重试是否成功
      */
     public abstract void markComplete();
 
     /**
-     * Utility - return true if the given Zookeeper result code is retry-able
+     * 实用程序-如果给定的Zookeeper结果代码可重试，则返回true
      *
      * @param rc result code
      * @return true/false
@@ -107,7 +102,7 @@ public abstract class RetryLoop {
     }
 
     /**
-     * Utility - return true if the given exception is retry-able
+     * 实用程序-如果给定的异常可重试，则返回true
      *
      * @param exception exception to check
      * @return true/false
@@ -121,7 +116,7 @@ public abstract class RetryLoop {
     }
 
     /**
-     * Pass any caught exceptions here
+     * 在此处传递任何捕获的异常
      *
      * @param exception the exception
      * @throws Exception if not retry-able or the retry policy returned negative

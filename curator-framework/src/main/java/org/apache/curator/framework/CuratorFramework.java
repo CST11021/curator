@@ -47,7 +47,6 @@ public interface CuratorFramework extends Closeable {
      * Start the client. Most mutator methods will not work until the client is started
      */
     public void start();
-
     /**
      * Stop the client
      */
@@ -69,20 +68,19 @@ public interface CuratorFramework extends Closeable {
     @Deprecated
     public boolean isStarted();
 
+
     /**
      * Start a create builder
      *
      * @return builder object
      */
     public CreateBuilder create();
-
     /**
      * Start a delete builder
      *
      * @return builder object
      */
     public DeleteBuilder delete();
-
     /**
      * Start an exists builder
      * <p>
@@ -92,55 +90,49 @@ public interface CuratorFramework extends Closeable {
      * @return builder object
      */
     public ExistsBuilder checkExists();
-
     /**
      * Start a get data builder
      *
      * @return builder object
      */
     public GetDataBuilder getData();
-
     /**
      * Start a set data builder
      *
      * @return builder object
      */
     public SetDataBuilder setData();
-
     /**
      * Start a get children builder
      *
      * @return builder object
      */
     public GetChildrenBuilder getChildren();
-
     /**
      * Start a get ACL builder
      *
      * @return builder object
      */
     public GetACLBuilder getACL();
-
     /**
      * Start a set ACL builder
      *
      * @return builder object
      */
     public SetACLBuilder setACL();
-
     /**
      * Start a reconfig builder
      *
      * @return builder object
      */
     public ReconfigBuilder reconfig();
-
     /**
      * Start a getConfig builder
      *
      * @return builder object
      */
     public GetConfigBuilder getConfig();
+
 
     /**
      * Start a transaction builder
@@ -149,14 +141,12 @@ public interface CuratorFramework extends Closeable {
      * @deprecated use {@link #transaction()} instead
      */
     public CuratorTransaction inTransaction();
-
     /**
      * Start a transaction builder
      *
      * @return builder object
      */
     public CuratorMultiTransaction transaction();
-
     /**
      * Allocate an operation that can be used with {@link #transaction()}.
      * NOTE: {@link CuratorOp} instances created by this builder are

@@ -27,14 +27,14 @@ import java.util.function.Supplier;
 
 /**
  * <p>
- *     Retry loops can easily end up getting nested which can cause exponential calls of the retry policy
- *     (see https://issues.apache.org/jira/browse/CURATOR-559). This utility works around that by using
- *     an internal ThreadLocal to hold a retry loop. E.g. if the retry loop fails anywhere in the chain
- *     of nested calls it will fail for the rest of the nested calls instead.
+ * Retry loops can easily end up getting nested which can cause exponential calls of the retry policy
+ * (see https://issues.apache.org/jira/browse/CURATOR-559). This utility works around that by using
+ * an internal ThreadLocal to hold a retry loop. E.g. if the retry loop fails anywhere in the chain
+ * of nested calls it will fail for the rest of the nested calls instead.
  * </p>
  *
  * <p>
- *     Example usage:
+ * Example usage:
  *
  * <code><pre>
  * ThreadLocalRetryLoop threadLocalRetryLoop = new ThreadLocalRetryLoop();
@@ -85,6 +85,11 @@ public class ThreadLocalRetryLoop {
             this.retryLoop = retryLoop;
         }
 
+        /**
+         * 是否继续重试，
+         *
+         * @return true/false
+         */
         @Override
         public boolean shouldContinue() {
             return retryLoop.shouldContinue() && (takenException == null);
@@ -113,8 +118,7 @@ public class ThreadLocalRetryLoop {
     }
 
     /**
-     * Call to get the current retry loop. If there isn't one, one is allocated
-     * via {@code newRetryLoopSupplier}.
+     * 调用以获取当前的RetryLoop。如果没有，则通过{@code newRetryLoopSupplier}分配一个。
      *
      * @param newRetryLoopSupplier supply a new retry loop when needed. Normally you should use {@link org.apache.curator.CuratorZookeeperClient#newRetryLoop()}
      * @return retry loop to use
