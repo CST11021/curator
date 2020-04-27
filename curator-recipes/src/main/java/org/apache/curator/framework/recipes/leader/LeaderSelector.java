@@ -342,16 +342,9 @@ public class LeaderSelector implements Closeable {
     }
 
     /**
-     * <p>
-     * Return the id for the current leader. If for some reason there is no
-     * current leader, a dummy participant is returned.
-     * </p>
-     * <p>
-     * <p>
-     * <B>NOTE</B> - this method polls the ZK server. Therefore it can possibly
-     * return a value that does not match {@link #hasLeadership()} as hasLeadership
-     * uses a local field of the class.
-     * </p>
+     * 返回当前领导者的ID。如果由于某种原因没有当前的领导者，则返回一个虚拟参与者。
+     * 注意：此方法轮询ZK服务器。
+     * 因此，它可能会返回与{@link #hasLeadership()}不匹配的值，因为hasLeadership使用该类的本地字段。
      *
      * @return leader
      * @throws Exception ZK errors, interruptions, etc.
@@ -383,7 +376,7 @@ public class LeaderSelector implements Closeable {
     }
 
     /**
-     * Return true if leadership is currently held by this instance
+     * 如果此实例当前处于领导地位，则返回true
      *
      * @return true/false
      */
@@ -392,7 +385,7 @@ public class LeaderSelector implements Closeable {
     }
 
     /**
-     * Attempt to cancel and interrupt the current leadership if this instance has leadership
+     * 如果此实例有领导，则尝试取消和中断当前的领导
      */
     public synchronized void interruptLeadership() {
         Future<?> task = ourTask.get();
