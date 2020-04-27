@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -27,51 +27,47 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.locks.InterProcessMutex;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.utils.CloseableExecutorService;
+import org.apache.curator.utils.PathUtils;
 import org.apache.curator.utils.ThreadUtils;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.Closeable;
 import java.io.UnsupportedEncodingException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.AbstractExecutorService;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.curator.utils.PathUtils;
 
 /**
- * <p>
- * Abstraction to select a "leader" amongst multiple contenders in a group of JMVs connected
- * to a Zookeeper cluster. If a group of N thread/processes contends for leadership, one will
- * be assigned leader until it releases leadership at which time another one from the group will
- * be chosen.
- * </p>
- * <p>
- * Note that this class uses an underlying {@link InterProcessMutex} and as a result leader
- * election is "fair" - each user will become leader in the order originally requested
- * (from ZK's point of view).
+ * 大致原理：LeaderSelector利用InterProcessMutex分布式锁进行抢主，抢到锁的即为Leader
+ *
+ * 在连接到Zookeeper集群的一组JMV中的多个竞争者中选择“领导者”的抽象
+ * 如果一组N个线程/进程争夺领导权，则将分配一个领导者，直到其释放领导权为止，此时将从该组中选择另一个
+ * 请注意，此类使用基础的{@link InterProcessMutex}，因此，领导者选举是“公平的” - 从ZK的角度来看，每个用户都将按照最初请求的顺序成为领导者。
  * </p>
  */
-public class LeaderSelector implements Closeable
-{
+public class LeaderSelector implements Closeable {
     private final Logger log = LoggerFactory.getLogger(getClass());
+
+    private enum State {
+        LATENT,
+        STARTED,
+        CLOSED
+    }
+
     private final CuratorFramework client;
     private final LeaderSelectorListener listener;
     private final CloseableExecutorService executorService;
     private final InterProcessMutex mutex;
     private final AtomicReference<State> state = new AtomicReference<State>(State.LATENT);
+    /** 默认情况下，返回{@link LeaderSelectorListener#takeLeadership(CuratorFramework)}时，不会重新排队该实例, 调用此方法会将领导者选择器置于始终会重新排队的模式 */
     private final AtomicBoolean autoRequeue = new AtomicBoolean(false);
+    /** 当将该实例放到队列中进行leader选举时，会创建一个任务，该参数指向对应的任务 */
     private final AtomicReference<Future<?>> ourTask = new AtomicReference<Future<?>>(null);
 
     private volatile boolean hasLeadership;
@@ -81,62 +77,22 @@ public class LeaderSelector implements Closeable
     volatile CountDownLatch debugLeadershipLatch = null;
     volatile CountDownLatch debugLeadershipWaitLatch = null;
 
-    private enum State
-    {
-        LATENT,
-        STARTED,
-        CLOSED
-    }
 
-    // guarded by synchronization
+
+    /** 标记该实例是否在leader选举的队列中 */
     private boolean isQueued = false;
 
     private static final ThreadFactory defaultThreadFactory = ThreadUtils.newThreadFactory("LeaderSelector");
 
-    /**
-     * @param client     the client
-     * @param leaderPath the path for this leadership group
-     * @param listener   listener
-     */
-    public LeaderSelector(CuratorFramework client, String leaderPath, LeaderSelectorListener listener)
-    {
-        this(client, leaderPath, new CloseableExecutorService(Executors.newSingleThreadExecutor(defaultThreadFactory), true), listener);
-    }
 
     /**
-     * @param client        the client
-     * @param leaderPath    the path for this leadership group
-     * @param threadFactory factory to use for making internal threads
-     * @param executor      the executor to run in
-     * @param listener      listener
-     * @deprecated This constructor was poorly thought out. Custom executor is useless. Use this version instead: {@link #LeaderSelector(CuratorFramework, String, ExecutorService, LeaderSelectorListener)}
-     */
-    @SuppressWarnings("UnusedParameters")
-    @Deprecated
-    public LeaderSelector(CuratorFramework client, String leaderPath, ThreadFactory threadFactory, Executor executor, LeaderSelectorListener listener)
-    {
-        this(client, leaderPath, new CloseableExecutorService(wrapExecutor(executor), true), listener);
-    }
-
-    /**
-     * @param client          the client
-     * @param leaderPath      the path for this leadership group
+     * @param client          zk客户端
+     * @param leaderPath      选举leader的节点路径
      * @param executorService thread pool to use
-     * @param listener        listener
+     * @param listener        leader选举监听
      */
-    public LeaderSelector(CuratorFramework client, String leaderPath, ExecutorService executorService, LeaderSelectorListener listener)
-    {
-        this(client, leaderPath, new CloseableExecutorService(executorService), listener);
-    }
-
-    /**
-     * @param client          the client
-     * @param leaderPath      the path for this leadership group
-     * @param executorService thread pool to use
-     * @param listener        listener
-     */
-    public LeaderSelector(CuratorFramework client, String leaderPath, CloseableExecutorService executorService, LeaderSelectorListener listener)
-    {
+    public LeaderSelector(CuratorFramework client, String leaderPath, CloseableExecutorService executorService, LeaderSelectorListener listener) {
+        // 入参检查
         Preconditions.checkNotNull(client, "client cannot be null");
         PathUtils.validatePath(leaderPath);
         Preconditions.checkNotNull(listener, "listener cannot be null");
@@ -146,111 +102,102 @@ public class LeaderSelector implements Closeable
         hasLeadership = false;
 
         this.executorService = executorService;
-        mutex = new InterProcessMutex(client, leaderPath)
-        {
+        mutex = new InterProcessMutex(client, leaderPath) {
+            /**
+             * 返回分布式锁节点路径
+             *
+             * @return
+             */
             @Override
-            protected byte[] getLockNodeBytes()
-            {
+            protected byte[] getLockNodeBytes() {
                 return (id.length() > 0) ? getIdBytes(id) : null;
             }
         };
     }
-
-    static byte[] getIdBytes(String id)
-    {
-        try
-        {
-            return id.getBytes("UTF-8");
-        }
-        catch ( UnsupportedEncodingException e )
-        {
-            throw new Error(e); // this should never happen
-        }
+    public LeaderSelector(CuratorFramework client, String leaderPath, LeaderSelectorListener listener) {
+        this(client, leaderPath, new CloseableExecutorService(Executors.newSingleThreadExecutor(defaultThreadFactory), true), listener);
+    }
+    @SuppressWarnings("UnusedParameters")
+    @Deprecated
+    public LeaderSelector(CuratorFramework client, String leaderPath, ThreadFactory threadFactory, Executor executor, LeaderSelectorListener listener) {
+        this(client, leaderPath, new CloseableExecutorService(wrapExecutor(executor), true), listener);
+    }
+    public LeaderSelector(CuratorFramework client, String leaderPath, ExecutorService executorService, LeaderSelectorListener listener) {
+        this(client, leaderPath, new CloseableExecutorService(executorService), listener);
     }
 
-    /**
-     * By default, when {@link LeaderSelectorListener#takeLeadership(CuratorFramework)} returns, this
-     * instance is not requeued. Calling this method puts the leader selector into a mode where it
-     * will always requeue itself.
-     */
-    public void autoRequeue()
-    {
-        autoRequeue.set(true);
-    }
+
 
     /**
-     * Sets the ID to store for this leader. Will be the value returned
-     * when {@link #getParticipants()} is called. IMPORTANT: must be called
-     * prior to {@link #start()} to have effect.
-     *
-     * @param id ID
+     * 开始进行leader选举，选举完成后通过{@link LeaderSelectorListener}监听回调
+     * 尝试领导。尝试在后台完成-即此方法立即返回。
+     * 注意：以前的版本允许多次调用此方法，此版本，不再支持。为此，请使用{@link #requeue()}。
      */
-    public void setId(String id)
-    {
-        Preconditions.checkNotNull(id, "id cannot be null");
-
-        this.id = id;
-    }
-
-    /**
-     * Return the ID that was set via {@link #setId(String)}
-     *
-     * @return id
-     */
-    public String getId()
-    {
-        return id;
-    }
-
-    /**
-     * Attempt leadership. This attempt is done in the background - i.e. this method returns
-     * immediately.<br><br>
-     * <b>IMPORTANT: </b> previous versions allowed this method to be called multiple times. This
-     * is no longer supported. Use {@link #requeue()} for this purpose.
-     */
-    public void start()
-    {
+    public void start() {
         Preconditions.checkState(state.compareAndSet(State.LATENT, State.STARTED), "Cannot be started more than once");
-
         Preconditions.checkState(!executorService.isShutdown(), "Already started");
         Preconditions.checkState(!hasLeadership, "Already has leadership");
 
+        // 添加监听器
         client.getConnectionStateListenable().addListener(listener);
         requeue();
     }
 
     /**
-     * Re-queue an attempt for leadership. If this instance is already queued, nothing
-     * happens and false is returned. If the instance was not queued, it is re-qeued and true
-     * is returned
+     * 将id转为字节返回
+     *
+     * @param id
+     * @return
+     */
+    static byte[] getIdBytes(String id) {
+        try {
+            return id.getBytes("UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            // this should never happen
+            throw new Error(e);
+        }
+    }
+
+    /**
+     * 默认情况下，返回{@link LeaderSelectorListener#takeLeadership(CuratorFramework)}时，不会重新排队该实例
+     * 调用此方法会将领导者选择器置于始终会重新排队的模式。
+     */
+    public void autoRequeue() {
+        autoRequeue.set(true);
+    }
+
+    /**
+     * 重新排队尝试进行领导：
+     * 如果此实例已在队列中，则什么也不会发生，并返回false。
+     * 如果实例未排队，则重新对其进行排队并返回true
      *
      * @return true if re-queue is successful
      */
-    public boolean requeue()
-    {
+    public boolean requeue() {
         Preconditions.checkState(state.get() == State.STARTED, "close() has already been called");
         return internalRequeue();
     }
-
-    private synchronized boolean internalRequeue()
-    {
-        if ( !isQueued && (state.get() == State.STARTED) )
-        {
+    /**
+     * 重新排队尝试进行领导：
+     * 如果此实例已在队列中，则什么也不会发生，并返回false。
+     * 如果实例未排队，则重新对其进行排队并返回true
+     *
+     * @return true if re-queue is successful
+     */
+    private synchronized boolean internalRequeue() {
+        if (!isQueued && (state.get() == State.STARTED)) {
             isQueued = true;
-            Future<Void> task = executorService.submit(new Callable<Void>()
-            {
+            Future<Void> task = executorService.submit(new Callable<Void>() {
                 @Override
-                public Void call() throws Exception
-                {
-                    try
-                    {
+                public Void call() throws Exception {
+                    try {
                         doWorkLoop();
-                    }
-                    finally
-                    {
+                    } finally {
+                        // 将isQueued设置为false，表示从选举的队列中移除了该实例
                         clearIsQueued();
-                        if ( autoRequeue.get() )
-                        {
+
+                        // 如果是需要自动再次进行leader选举时，则再次调用internalRequeue()继续争抢锁
+                        if (autoRequeue.get()) {
                             internalRequeue();
                         }
                     }
@@ -263,12 +210,97 @@ public class LeaderSelector implements Closeable
         }
         return false;
     }
+    /**
+     * 开始leader选举工作
+     *
+     * @throws Exception
+     */
+    private void doWorkLoop() throws Exception {
+        KeeperException exception = null;
+        try {
+            doWork();
+        } catch (KeeperException.ConnectionLossException e) {
+            exception = e;
+        } catch (KeeperException.SessionExpiredException e) {
+            exception = e;
+        } catch (InterruptedException ignore) {
+            Thread.currentThread().interrupt();
+        }
+        // autoRequeue应该忽略连接丢失或会话过期，并继续尝试
+        if ((exception != null) && !autoRequeue.get()) {
+            throw exception;
+        }
+    }
+
+    /**
+     * 开始leader选举工作
+     * @throws Exception
+     */
+    @VisibleForTesting
+    void doWork() throws Exception {
+        // 开始选举前大家都不是leader
+        hasLeadership = false;
+        try {
+            // 请求分布式锁，进行leader选举
+            mutex.acquire();
+
+            // 走到这里说明，抢到了锁，将hasLeadership = true，说明当前实例已经是leader了
+            hasLeadership = true;
+            try {
+                if (debugLeadershipLatch != null) {
+                    debugLeadershipLatch.countDown();
+                }
+
+                if (debugLeadershipWaitLatch != null) {
+                    debugLeadershipWaitLatch.await();
+                }
+
+                // 触发监听器
+                listener.takeLeadership(client);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw e;
+            } catch (Throwable e) {
+                ThreadUtils.checkInterrupted(e);
+            } finally {
+                //
+                clearIsQueued();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw e;
+        } finally {
+            // 如果是leader
+            if (hasLeadership) {
+                hasLeadership = false;
+                // 清除所有中断的status，以便mutex.release()立即起作用
+                boolean wasInterrupted = Thread.interrupted();
+                try {
+                    // 释放锁
+                    mutex.release();
+                } catch (Exception e) {
+                    if (failedMutexReleaseCount != null) {
+                        failedMutexReleaseCount.incrementAndGet();
+                    }
+
+                    ThreadUtils.checkInterrupted(e);
+                    log.error("The leader threw an exception", e);
+                    // ignore errors - this is just a safety
+                } finally {
+                    if (wasInterrupted) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            }
+        }
+    }
+
+
 
     /**
      * Shutdown this selector and remove yourself from the leadership group
      */
-    public synchronized void close()
-    {
+    public synchronized void close() {
         Preconditions.checkState(state.compareAndSet(State.STARTED, State.CLOSED), "Already closed or has not been started");
 
         client.getConnectionStateListenable().removeListener(listener);
@@ -278,36 +310,28 @@ public class LeaderSelector implements Closeable
 
     /**
      * <p>
-     * Returns the set of current participants in the leader selection
-     * </p>
-     * <p>
-     * <p>
-     * <B>NOTE</B> - this method polls the ZK server. Therefore it can possibly
-     * return a value that does not match {@link #hasLeadership()} as hasLeadership
-     * uses a local field of the class.
+     * 返回领导者选择中的当前参与者的集合
+     *
+     * 注意：此方法轮询ZK服务器。因此，它可能会返回与{@link #hasLeadership()}不匹配的值，因为hasLeadership使用该类的本地字段。
      * </p>
      *
      * @return participants
      * @throws Exception ZK errors, interruptions, etc.
      */
-    public Collection<Participant> getParticipants() throws Exception
-    {
+    public Collection<Participant> getParticipants() throws Exception {
         Collection<String> participantNodes = mutex.getParticipantNodes();
 
         return getParticipants(client, participantNodes);
     }
 
-    static Collection<Participant> getParticipants(CuratorFramework client, Collection<String> participantNodes) throws Exception
-    {
+    static Collection<Participant> getParticipants(CuratorFramework client, Collection<String> participantNodes) throws Exception {
         ImmutableList.Builder<Participant> builder = ImmutableList.builder();
 
         boolean isLeader = true;
-        for ( String path : participantNodes )
-        {
+        for (String path : participantNodes) {
             Participant participant = participantForPath(client, path, isLeader);
 
-            if( participant != null )
-            {
+            if (participant != null) {
                 builder.add(participant);
 
                 isLeader = false;   // by definition the first node is the leader
@@ -332,32 +356,26 @@ public class LeaderSelector implements Closeable
      * @return leader
      * @throws Exception ZK errors, interruptions, etc.
      */
-    public Participant getLeader() throws Exception
-    {
+    public Participant getLeader() throws Exception {
         Collection<String> participantNodes = mutex.getParticipantNodes();
         return getLeader(client, participantNodes);
     }
 
-    static Participant getLeader(CuratorFramework client, Collection<String> participantNodes) throws Exception
-    {
+    static Participant getLeader(CuratorFramework client, Collection<String> participantNodes) throws Exception {
         Participant result = null;
 
-        if ( participantNodes.size() > 0 )
-        {
+        if (participantNodes.size() > 0) {
             Iterator<String> iter = participantNodes.iterator();
-            while ( iter.hasNext() )
-            {
+            while (iter.hasNext()) {
                 result = participantForPath(client, iter.next(), true);
 
-                if ( result != null )
-                {
+                if (result != null) {
                     break;
                 }
             }
         }
 
-        if( result == null )
-        {
+        if (result == null) {
             result = new Participant();
         }
 
@@ -369,189 +387,81 @@ public class LeaderSelector implements Closeable
      *
      * @return true/false
      */
-    public boolean hasLeadership()
-    {
+    public boolean hasLeadership() {
         return hasLeadership;
     }
 
     /**
      * Attempt to cancel and interrupt the current leadership if this instance has leadership
      */
-    public synchronized void interruptLeadership()
-    {
+    public synchronized void interruptLeadership() {
         Future<?> task = ourTask.get();
-        if ( task != null )
-        {
+        if (task != null) {
             task.cancel(true);
         }
     }
 
-    private static Participant participantForPath(CuratorFramework client, String path, boolean markAsLeader) throws Exception
-    {
-        try
-        {
+    private static Participant participantForPath(CuratorFramework client, String path, boolean markAsLeader) throws Exception {
+        try {
             byte[] bytes = client.getData().forPath(path);
             String thisId = new String(bytes, "UTF-8");
             return new Participant(thisId, markAsLeader);
-        }
-        catch ( KeeperException.NoNodeException e )
-        {
+        } catch (KeeperException.NoNodeException e) {
             return null;
         }
     }
 
+    /** 用于统计放弃leader时，释放的分布式锁的失败次数 */
     @VisibleForTesting
     volatile AtomicInteger failedMutexReleaseCount = null;
 
-    @VisibleForTesting
-    void doWork() throws Exception
-    {
-        hasLeadership = false;
-        try
-        {
-            mutex.acquire();
 
-            hasLeadership = true;
-            try
-            {
-                if ( debugLeadershipLatch != null )
-                {
-                    debugLeadershipLatch.countDown();
-                }
-                if ( debugLeadershipWaitLatch != null )
-                {
-                    debugLeadershipWaitLatch.await();
-                }
-                listener.takeLeadership(client);
-            }
-            catch ( InterruptedException e )
-            {
-                Thread.currentThread().interrupt();
-                throw e;
-            }
-            catch ( Throwable e )
-            {
-                ThreadUtils.checkInterrupted(e);
-            }
-            finally
-            {
-                clearIsQueued();
-            }
-        }
-        catch ( InterruptedException e )
-        {
-            Thread.currentThread().interrupt();
-            throw e;
-        }
-        finally
-        {
-            if ( hasLeadership )
-            {
-                hasLeadership = false;
-                boolean wasInterrupted = Thread.interrupted();  // clear any interrupted tatus so that mutex.release() works immediately
-                try
-                {
-                    mutex.release();
-                }
-                catch ( Exception e )
-                {
-                    if ( failedMutexReleaseCount != null )
-                    {
-                        failedMutexReleaseCount.incrementAndGet();
-                    }
 
-                    ThreadUtils.checkInterrupted(e);
-                    log.error("The leader threw an exception", e);
-                    // ignore errors - this is just a safety
-                }
-                finally
-                {
-                    if ( wasInterrupted )
-                    {
-                        Thread.currentThread().interrupt();
-                    }
-                }
-            }
-        }
-    }
 
-    private void doWorkLoop() throws Exception
-    {
-        KeeperException exception = null;
-        try
-        {
-            doWork();
-        }
-        catch ( KeeperException.ConnectionLossException e )
-        {
-            exception = e;
-        }
-        catch ( KeeperException.SessionExpiredException e )
-        {
-            exception = e;
-        }
-        catch ( InterruptedException ignore )
-        {
-            Thread.currentThread().interrupt();
-        }
-        if ( (exception != null) && !autoRequeue.get() )   // autoRequeue should ignore connection loss or session expired and just keep trying
-        {
-            throw exception;
-        }
-    }
 
-    private synchronized void clearIsQueued()
-    {
+    /**
+     * 当时实例放弃leader时，会调用该方法，将isQueued设置为false，
+     */
+    private synchronized void clearIsQueued() {
         isQueued = false;
     }
 
-    // temporary wrapper for deprecated constructor
-    private static ExecutorService wrapExecutor(final Executor executor)
-    {
-        return new AbstractExecutorService()
-        {
+    // 弃用的构造函数的临时包装
+    private static ExecutorService wrapExecutor(final Executor executor) {
+        return new AbstractExecutorService() {
             private volatile boolean isShutdown = false;
             private volatile boolean isTerminated = false;
 
             @Override
-            public void shutdown()
-            {
+            public void shutdown() {
                 isShutdown = true;
             }
 
             @Override
-            public List<Runnable> shutdownNow()
-            {
+            public List<Runnable> shutdownNow() {
                 return Lists.newArrayList();
             }
 
             @Override
-            public boolean isShutdown()
-            {
+            public boolean isShutdown() {
                 return isShutdown;
             }
 
             @Override
-            public boolean isTerminated()
-            {
+            public boolean isTerminated() {
                 return isTerminated;
             }
 
             @Override
-            public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException
-            {
+            public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
                 throw new UnsupportedOperationException();
             }
 
             @Override
-            public void execute(Runnable command)
-            {
-                try
-                {
+            public void execute(Runnable command) {
+                try {
                     executor.execute(command);
-                }
-                finally
-                {
+                } finally {
                     isShutdown = true;
                     isTerminated = true;
                 }
@@ -559,32 +469,50 @@ public class LeaderSelector implements Closeable
         };
     }
 
-    private static class WrappedListener implements LeaderSelectorListener
-    {
+
+
+
+    // getter and setter ...
+
+    /**
+     * 设置要为此领导者存储的ID。将是调用{@link #getParticipants()}时返回的值。
+     * 重要说明：必须先在{@link #start()}之前调用才能生效。
+     *
+     * @param id ID
+     */
+    public void setId(String id) {
+        Preconditions.checkNotNull(id, "id cannot be null");
+        this.id = id;
+    }
+    /**
+     * 返回通过{@link #setId(String)}设置的ID
+     *
+     * @return id
+     */
+    public String getId() {
+        return id;
+    }
+
+
+    private static class WrappedListener implements LeaderSelectorListener {
         private final LeaderSelector leaderSelector;
         private final LeaderSelectorListener listener;
 
-        public WrappedListener(LeaderSelector leaderSelector, LeaderSelectorListener listener)
-        {
+        public WrappedListener(LeaderSelector leaderSelector, LeaderSelectorListener listener) {
             this.leaderSelector = leaderSelector;
             this.listener = listener;
         }
 
         @Override
-        public void takeLeadership(CuratorFramework client) throws Exception
-        {
+        public void takeLeadership(CuratorFramework client) throws Exception {
             listener.takeLeadership(client);
         }
 
         @Override
-        public void stateChanged(CuratorFramework client, ConnectionState newState)
-        {
-            try
-            {
+        public void stateChanged(CuratorFramework client, ConnectionState newState) {
+            try {
                 listener.stateChanged(client, newState);
-            }
-            catch ( CancelLeadershipException dummy )
-            {
+            } catch (CancelLeadershipException dummy) {
                 leaderSelector.interruptLeadership();
             }
         }

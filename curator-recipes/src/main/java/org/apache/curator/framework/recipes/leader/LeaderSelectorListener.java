@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -26,14 +26,13 @@ import org.apache.curator.framework.state.ConnectionStateListener;
  *
  * @see LeaderSelector
  */
-public interface LeaderSelectorListener extends ConnectionStateListener
-{
+public interface LeaderSelectorListener extends ConnectionStateListener {
+
     /**
-     * Called when your instance has been granted leadership. This method
-     * should not return until you wish to release leadership
+     * 在您的实例被授予领导权时会调用该方法, 该方法执行完成后，会放弃成为Leader
      *
      * @param client the client
      * @throws Exception any errors
      */
-    public void         takeLeadership(CuratorFramework client) throws Exception;
+    public void takeLeadership(CuratorFramework client) throws Exception;
 }

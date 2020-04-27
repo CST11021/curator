@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -22,23 +22,21 @@ package org.apache.curator.framework.recipes.leader;
  * Describes a participant in a leadership selection
  */
 @SuppressWarnings({"RedundantIfStatement"})
-public class Participant
-{
-    private final String        id;
-    private final boolean       isLeader;
+public class Participant {
+
+    private final String id;
+    private final boolean isLeader;
 
     /**
      * @param id the ID
      * @param leader true if the leader
      */
-    public Participant(String id, boolean leader)
-    {
+    public Participant(String id, boolean leader) {
         this.id = id;
         isLeader = leader;
     }
 
-    Participant()
-    {
+    Participant() {
         this("", false);
     }
 
@@ -47,8 +45,7 @@ public class Participant
      *
      * @return id
      */
-    public String getId()
-    {
+    public String getId() {
         return id;
     }
 
@@ -57,40 +54,33 @@ public class Participant
      *
      * @return true/false
      */
-    public boolean isLeader()
-    {
+    public boolean isLeader() {
         return isLeader;
     }
 
     @Override
-    public String toString()
-    {
+    public String toString() {
         return "Participant{" +
-            "id='" + id + '\'' +
-            ", isLeader=" + isLeader +
-            '}';
+                "id='" + id + '\'' +
+                ", isLeader=" + isLeader +
+                '}';
     }
 
     @Override
-    public boolean equals(Object o)
-    {
-        if ( this == o )
-        {
+    public boolean equals(Object o) {
+        if (this == o) {
             return true;
         }
-        if ( o == null || getClass() != o.getClass() )
-        {
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
 
-        Participant that = (Participant)o;
+        Participant that = (Participant) o;
 
-        if ( isLeader != that.isLeader )
-        {
+        if (isLeader != that.isLeader) {
             return false;
         }
-        if ( !id.equals(that.id) )
-        {
+        if (!id.equals(that.id)) {
             return false;
         }
 
@@ -98,8 +88,7 @@ public class Participant
     }
 
     @Override
-    public int hashCode()
-    {
+    public int hashCode() {
         int result = id.hashCode();
         result = 31 * result + (isLeader ? 1 : 0);
         return result;
