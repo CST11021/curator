@@ -23,20 +23,13 @@ import org.apache.curator.framework.CuratorFramework;
 /**
  * @see CuratorFramework#getState()
  */
-public enum CuratorFrameworkState
-{
-    /**
-     * {@link CuratorFramework#start()} has not yet been called
-     */
+public enum CuratorFrameworkState {
+
+    /** {@link CuratorFramework#start()}被调用前的状态 */
     LATENT,
-
-    /**
-     * {@link CuratorFramework#start()} has been called
-     */
+    /** {@link CuratorFramework#start()} has been called */
     STARTED,
-
-    /**
-     * {@link CuratorFramework#close()} has been called
-     */
+    /** {@link CuratorFramework#close()} has been called */
     STOPPED
+
 }

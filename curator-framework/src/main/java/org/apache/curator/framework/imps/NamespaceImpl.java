@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -20,31 +20,31 @@ package org.apache.curator.framework.imps;
 
 import org.apache.curator.CuratorZookeeperClient;
 import org.apache.curator.RetryLoop;
-import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.utils.EnsurePath;
 import org.apache.curator.utils.PathUtils;
 import org.apache.curator.utils.ThreadUtils;
 import org.apache.curator.utils.ZKPaths;
-import org.apache.zookeeper.ZooDefs;
+
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-class NamespaceImpl
-{
+/**
+ * 用于给节点路径加上或去掉命名空间
+ */
+class NamespaceImpl {
+
+    /** zk客户端 */
     private final CuratorFrameworkImpl client;
+    /** 隔离命名空间 */
     private final String namespace;
+    /** 用于标记命名空间是否为空 */
     private final AtomicBoolean ensurePathNeeded;
 
-    NamespaceImpl(CuratorFrameworkImpl client, String namespace)
-    {
-        if ( namespace != null )
-        {
-            try
-            {
+    NamespaceImpl(CuratorFrameworkImpl client, String namespace) {
+        if (namespace != null) {
+            try {
                 PathUtils.validatePath("/" + namespace);
-            }
-            catch ( IllegalArgumentException e )
-            {
+            } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("Invalid namespace: " + namespace + ", " + e.getMessage());
             }
         }
@@ -54,48 +54,53 @@ class NamespaceImpl
         ensurePathNeeded = new AtomicBoolean(namespace != null);
     }
 
-    String getNamespace()
-    {
+    /**
+     * 获取命名空间
+     *
+     * @return
+     */
+    String getNamespace() {
         return namespace;
     }
 
-    String    unfixForNamespace(String path)
-    {
-        if ( (namespace != null) && (path != null) )
-        {
-            String      namespacePath = ZKPaths.makePath(namespace, null);
-            if ( !namespacePath.equals("/") && path.startsWith(namespacePath) )
-            {
+    /**
+     * 去掉命名空间前缀
+     *
+     * @param path
+     * @return
+     */
+    String unfixForNamespace(String path) {
+        if ((namespace != null) && (path != null)) {
+            // 返回例如：/namespace
+            String namespacePath = ZKPaths.makePath(namespace, null);
+            if (!namespacePath.equals("/") && path.startsWith(namespacePath)) {
                 path = (path.length() > namespacePath.length()) ? path.substring(namespacePath.length()) : "/";
             }
         }
         return path;
     }
 
-    String    fixForNamespace(String path, boolean isSequential)
-    {
-        if ( ensurePathNeeded.get() )
-        {
-            try
-            {
+    /**
+     * 加上命令空间前缀
+     *
+     * @param path
+     * @param isSequential
+     * @return
+     */
+    String fixForNamespace(String path, boolean isSequential) {
+        if (ensurePathNeeded.get()) {
+            try {
                 final CuratorZookeeperClient zookeeperClient = client.getZookeeperClient();
-                RetryLoop.callWithRetry
-                (
-                    zookeeperClient,
-                    new Callable<Object>()
-                    {
-                        @Override
-                        public Object call() throws Exception
-                        {
-                            ZKPaths.mkdirs(zookeeperClient.getZooKeeper(), ZKPaths.makePath("/", namespace), true, client.getAclProvider(), true);
-                            return null;
-                        }
-                    }
-                );
+                RetryLoop.callWithRetry(zookeeperClient, new Callable<Object>() {
+                                    @Override
+                                    public Object call() throws Exception {
+                                        // 确保节点路径的下所有节点都已经创建
+                                        ZKPaths.mkdirs(zookeeperClient.getZooKeeper(), ZKPaths.makePath("/", namespace), true, client.getAclProvider(), true);
+                                        return null;
+                                    }
+                                });
                 ensurePathNeeded.set(false);
-            }
-            catch ( Exception e )
-            {
+            } catch (Exception e) {
                 ThreadUtils.checkInterrupted(e);
                 client.logError("Ensure path threw exception", e);
             }
@@ -104,8 +109,14 @@ class NamespaceImpl
         return ZKPaths.fixForNamespace(namespace, path, isSequential);
     }
 
-    EnsurePath newNamespaceAwareEnsurePath(String path)
-    {
+    /**
+     * 返回一个EnsurePath，该类用于确保该节点路径下的所有节点都已经创建
+     *
+     * @param path
+     * @return
+     */
+    EnsurePath newNamespaceAwareEnsurePath(String path) {
         return new EnsurePath(fixForNamespace(path, false), client.getAclProvider());
     }
+
 }

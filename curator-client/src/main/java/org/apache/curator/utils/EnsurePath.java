@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -22,10 +22,13 @@ package org.apache.curator.utils;
 import org.apache.curator.CuratorZookeeperClient;
 import org.apache.curator.RetryLoop;
 import org.apache.zookeeper.ZooKeeper;
+
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
+ * 该类用于确保该节点路径下的所有节点都已经创建
+ *
  * <p>
  * Utility to ensure that a particular path is created.
  * </p>
@@ -51,32 +54,27 @@ import java.util.concurrent.atomic.AtomicReference;
  * @deprecated Since 2.9.0 - Prefer CuratorFramework.create().creatingParentContainersIfNeeded() or CuratorFramework.exists().creatingParentContainersIfNeeded()
  */
 @Deprecated
-public class EnsurePath
-{
+public class EnsurePath {
     private final String path;
     private final boolean makeLastNode;
     private final InternalACLProvider aclProvider;
     private final AtomicReference<Helper> helper;
 
-    private static final Helper doNothingHelper = new Helper()
-    {
+    private static final Helper doNothingHelper = new Helper() {
         @Override
-        public void ensure(CuratorZookeeperClient client, String path, final boolean makeLastNode) throws Exception
-        {
+        public void ensure(CuratorZookeeperClient client, String path, final boolean makeLastNode) throws Exception {
             // NOP
         }
     };
 
-    interface Helper
-    {
+    interface Helper {
         public void ensure(CuratorZookeeperClient client, String path, final boolean makeLastNode) throws Exception;
     }
 
     /**
      * @param path the full path to ensure
      */
-    public EnsurePath(String path)
-    {
+    public EnsurePath(String path) {
         this(path, null, true, null);
     }
 
@@ -84,8 +82,7 @@ public class EnsurePath
      * @param path the full path to ensure
      * @param aclProvider if not null, the ACL provider to use when creating parent nodes
      */
-    public EnsurePath(String path, InternalACLProvider aclProvider)
-    {
+    public EnsurePath(String path, InternalACLProvider aclProvider) {
         this(path, null, true, aclProvider);
     }
 
@@ -96,8 +93,7 @@ public class EnsurePath
      * @param client ZK client
      * @throws Exception ZK errors
      */
-    public void ensure(CuratorZookeeperClient client) throws Exception
-    {
+    public void ensure(CuratorZookeeperClient client) throws Exception {
         Helper localHelper = helper.get();
         localHelper.ensure(client, path, makeLastNode);
     }
@@ -108,13 +104,11 @@ public class EnsurePath
      *
      * @return view
      */
-    public EnsurePath excludingLast()
-    {
+    public EnsurePath excludingLast() {
         return new EnsurePath(path, helper, false, aclProvider);
     }
 
-    protected EnsurePath(String path, AtomicReference<Helper> helper, boolean makeLastNode, InternalACLProvider aclProvider)
-    {
+    protected EnsurePath(String path, AtomicReference<Helper> helper, boolean makeLastNode, InternalACLProvider aclProvider) {
         this.path = path;
         this.makeLastNode = makeLastNode;
         this.aclProvider = aclProvider;
@@ -126,40 +120,33 @@ public class EnsurePath
      *
      * @return the path being ensured
      */
-    public String getPath()
-    {
+    public String getPath() {
         return this.path;
     }
 
-    protected boolean asContainers()
-    {
+    protected boolean asContainers() {
         return false;
     }
 
-    private class InitialHelper implements Helper
-    {
+    private class InitialHelper implements Helper {
         private boolean isSet = false;  // guarded by synchronization
 
         @Override
-        public synchronized void ensure(final CuratorZookeeperClient client, final String path, final boolean makeLastNode) throws Exception
-        {
-            if ( !isSet )
-            {
+        public synchronized void ensure(final CuratorZookeeperClient client, final String path, final boolean makeLastNode) throws Exception {
+            if (!isSet) {
                 RetryLoop.callWithRetry
-                    (
-                        client,
-                        new Callable<Object>()
-                        {
-                            @Override
-                            public Object call() throws Exception
-                            {
-                                ZKPaths.mkdirs(client.getZooKeeper(), path, makeLastNode, aclProvider, asContainers());
-                                helper.set(doNothingHelper);
-                                isSet = true;
-                                return null;
-                            }
-                        }
-                    );
+                        (
+                                client,
+                                new Callable<Object>() {
+                                    @Override
+                                    public Object call() throws Exception {
+                                        ZKPaths.mkdirs(client.getZooKeeper(), path, makeLastNode, aclProvider, asContainers());
+                                        helper.set(doNothingHelper);
+                                        isSet = true;
+                                        return null;
+                                    }
+                                }
+                        );
             }
         }
     }

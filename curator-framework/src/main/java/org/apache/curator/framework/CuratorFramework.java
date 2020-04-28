@@ -69,6 +69,7 @@ public interface CuratorFramework extends Closeable {
     public boolean isStarted();
 
 
+
     /**
      * Start a create builder
      *
@@ -134,6 +135,7 @@ public interface CuratorFramework extends Closeable {
     public GetConfigBuilder getConfig();
 
 
+
     /**
      * Start a transaction builder
      *
@@ -156,6 +158,8 @@ public interface CuratorFramework extends Closeable {
      */
     public TransactionOp transactionOp();
 
+
+
     /**
      * Perform a sync on the given path - syncs are always in the background
      *
@@ -167,8 +171,7 @@ public interface CuratorFramework extends Closeable {
     public void sync(String path, Object backgroundContextObject);
 
     /**
-     * Create all nodes in the specified path as containers if they don't
-     * already exist
+     * 如果指定的路径中的所有节点都不存在，则将它们创建为容器
      *
      * @param path path to create
      * @throws Exception errors
@@ -176,8 +179,7 @@ public interface CuratorFramework extends Closeable {
     public void createContainers(String path) throws Exception;
 
     /**
-     * Start a sync builder. Note: sync is ALWAYS in the background even
-     * if you don't use one of the background() methods
+     * 启动同步构建器。注意：即使您不使用background()方法之一，同步始终在后台进行
      *
      * @return builder object
      */
@@ -190,14 +192,14 @@ public interface CuratorFramework extends Closeable {
     public RemoveWatchesBuilder watches();
 
     /**
-     * Returns the listenable interface for the Connect State
+     * 返回连接状态的可监听接口
      *
      * @return listenable
      */
     public Listenable<ConnectionStateListener> getConnectionStateListenable();
 
     /**
-     * Returns the listenable interface for events
+     * 返回事件的可监听接口
      *
      * @return listenable
      */
@@ -229,19 +231,41 @@ public interface CuratorFramework extends Closeable {
      */
     public CuratorFramework usingNamespace(String newNamespace);
 
-    /**
-     * Return the current namespace or "" if none
-     *
-     * @return namespace
-     */
-    public String getNamespace();
+
+
 
     /**
-     * Return the managed zookeeper client
+     * 返回托管的Zookeeper客户端
      *
      * @return client
      */
     public CuratorZookeeperClient getZookeeperClient();
+    /**
+     * 返回当前名称空间；如果没有，则返回“”
+     *
+     * @return namespace
+     */
+    public String getNamespace();
+    /**
+     * Current维护Zookeeper仲裁配置的缓存视图。
+     *
+     * @return the current config
+     */
+    public QuorumVerifier getCurrentConfig();
+    /**
+     * 返回此实例的模式集
+     *
+     * @return schema set
+     */
+    SchemaSet getSchemaSet();
+    /**
+     * 如果此实例以ZK 3.4.x兼容模式运行，则返回true
+     *
+     * @return true/false
+     */
+    boolean isZk34CompatibilityMode();
+
+
 
     /**
      * Allocates an ensure path instance that is namespace aware
@@ -268,6 +292,7 @@ public interface CuratorFramework extends Closeable {
     @Deprecated
     public void clearWatcherReferences(Watcher watcher);
 
+
     /**
      * Block until a connection to ZooKeeper is available or the maxWaitTime has been exceeded
      * @param maxWaitTime The maximum wait time. Specify a value &lt;= 0 to wait indefinitely
@@ -276,7 +301,6 @@ public interface CuratorFramework extends Closeable {
      * @throws InterruptedException If interrupted while waiting
      */
     public boolean blockUntilConnected(int maxWaitTime, TimeUnit units) throws InterruptedException;
-
     /**
      * Block until a connection to ZooKeeper is available. This method will not return until a
      * connection is available or it is interrupted, in which case an InterruptedException will
@@ -284,6 +308,8 @@ public interface CuratorFramework extends Closeable {
      * @throws InterruptedException If interrupted while waiting
      */
     public void blockUntilConnected() throws InterruptedException;
+
+
 
     /**
      * Returns a facade of the current instance that tracks
@@ -301,27 +327,18 @@ public interface CuratorFramework extends Closeable {
      */
     public ConnectionStateErrorPolicy getConnectionStateErrorPolicy();
 
-    /**
-     * Current maintains a cached view of the Zookeeper quorum config.
-     *
-     * @return the current config
-     */
-    public QuorumVerifier getCurrentConfig();
+
+
+
 
     /**
-     * Return this instance's schema set
+     * Curater（和用户）可以使用它来运行notifyAll和其他通常可能会阻止ZooKeeper的事件线程的阻止调用
      *
-     * @return schema set
+     * @param runnable proc to call from a safe internal thread
+     * @return a CompletableFuture that can be used to monitor when the call is complete
+     * @since 4.1.0
      */
-    SchemaSet getSchemaSet();
-
-    /**
-     * Return true if this instance is running in ZK 3.4.x compatibility mode
-     *
-     * @return true/false
-     */
-    boolean isZk34CompatibilityMode();
-
+    CompletableFuture<Void> runSafe(Runnable runnable);
     /**
      * Calls {@link #notifyAll()} on the given object after first synchronizing on it. This is
      * done from the {@link #runSafe(Runnable)} thread.
@@ -338,12 +355,4 @@ public interface CuratorFramework extends Closeable {
         });
     }
 
-    /**
-     * Curator (and user) recipes can use this to run notifyAll
-     * and other blocking calls that might normally block ZooKeeper's event thread.
-     * @param runnable proc to call from a safe internal thread
-     * @return a CompletableFuture that can be used to monitor when the call is complete
-     * @since 4.1.0
-     */
-    CompletableFuture<Void> runSafe(Runnable runnable);
 }

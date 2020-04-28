@@ -63,6 +63,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class CuratorFrameworkImpl implements CuratorFramework {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
+
     private final CuratorZookeeperClient client;
     private final ListenerContainer<CuratorListener> listeners;
     private final ListenerContainer<UnhandledErrorListener> unhandledErrorListeners;
@@ -93,6 +94,8 @@ public class CuratorFrameworkImpl implements CuratorFramework {
     volatile DebugBackgroundListener debugListener = null;
     @VisibleForTesting
     public volatile UnhandledErrorListener debugUnhandledErrorListener = null;
+    @VisibleForTesting
+    volatile long sleepAndQueueOperationSeconds = 1;
     private final AtomicReference<CuratorFrameworkState> state;
 
 
@@ -158,21 +161,134 @@ public class CuratorFrameworkImpl implements CuratorFramework {
         ensembleTracker = zk34CompatibilityMode ? null : new EnsembleTracker(this, builder.getEnsembleProvider());
         runSafeService = makeRunSafeService(builder);
     }
+    protected CuratorFrameworkImpl(CuratorFrameworkImpl parent) {
+        client = parent.client;
+        listeners = parent.listeners;
+        unhandledErrorListeners = parent.unhandledErrorListeners;
+        threadFactory = parent.threadFactory;
+        maxCloseWaitMs = parent.maxCloseWaitMs;
+        backgroundOperations = parent.backgroundOperations;
+        forcedSleepOperations = parent.forcedSleepOperations;
+        connectionStateManager = parent.connectionStateManager;
+        defaultData = parent.defaultData;
+        failedDeleteManager = parent.failedDeleteManager;
+        failedRemoveWatcherManager = parent.failedRemoveWatcherManager;
+        compressionProvider = parent.compressionProvider;
+        aclProvider = parent.aclProvider;
+        namespaceFacadeCache = parent.namespaceFacadeCache;
+        namespace = new NamespaceImpl(this, null);
+        state = parent.state;
+        authInfos = parent.authInfos;
+        useContainerParentsIfAvailable = parent.useContainerParentsIfAvailable;
+        connectionStateErrorPolicy = parent.connectionStateErrorPolicy;
+        internalConnectionHandler = parent.internalConnectionHandler;
+        schemaSet = parent.schemaSet;
+        zk34CompatibilityMode = parent.zk34CompatibilityMode;
+        ensembleTracker = null;
+        runSafeService = parent.runSafeService;
+    }
+
+
+
+    @Override
+    public CreateBuilder create() {
+        // 检查CuratorFramework是否调用过{@link #start()}
+        checkState();
+        return new CreateBuilderImpl(this);
+    }
+    @Override
+    public DeleteBuilder delete() {
+        // 检查CuratorFramework是否调用过{@link #start()}
+        checkState();
+        return new DeleteBuilderImpl(this);
+    }
+    @Override
+    public ExistsBuilder checkExists() {
+        // 检查CuratorFramework是否调用过{@link #start()}
+        checkState();
+        return new ExistsBuilderImpl(this);
+    }
+    @Override
+    public GetDataBuilder getData() {
+        // 检查CuratorFramework是否调用过{@link #start()}
+        checkState();
+        return new GetDataBuilderImpl(this);
+    }
+    @Override
+    public SetDataBuilder setData() {
+        // 检查CuratorFramework是否调用过{@link #start()}
+        checkState();
+        return new SetDataBuilderImpl(this);
+    }
+    @Override
+    public GetChildrenBuilder getChildren() {
+        // 检查CuratorFramework是否调用过{@link #start()}
+        checkState();
+        return new GetChildrenBuilderImpl(this);
+    }
+    @Override
+    public GetACLBuilder getACL() {
+        // 检查CuratorFramework是否调用过{@link #start()}
+        checkState();
+        return new GetACLBuilderImpl(this);
+    }
+    @Override
+    public SetACLBuilder setACL() {
+        // 检查CuratorFramework是否调用过{@link #start()}
+        checkState();
+        return new SetACLBuilderImpl(this);
+    }
+    @Override
+    public ReconfigBuilder reconfig() {
+        Preconditions.checkState(!isZk34CompatibilityMode(), "reconfig/config APIs are not support when running in ZooKeeper 3.4 compatibility mode");
+        return new ReconfigBuilderImpl(this);
+    }
+    @Override
+    public GetConfigBuilder getConfig() {
+        Preconditions.checkState(!isZk34CompatibilityMode(), "reconfig/config APIs are not support when running in ZooKeeper 3.4 compatibility mode");
+        return new GetConfigBuilderImpl(this);
+    }
+
+
+
+    @Override
+    public CuratorTransaction inTransaction() {
+        checkState();
+        return new CuratorTransactionImpl(this);
+    }
+    @Override
+    public CuratorMultiTransaction transaction() {
+        checkState();
+        return new CuratorMultiTransactionImpl(this);
+    }
+    @Override
+    public TransactionOp transactionOp() {
+        checkState();
+        return new TransactionOpImpl(this);
+    }
 
 
 
 
+
+
+    /**
+     * 获取{@link CuratorFrameworkFactory.Builder#runSafeService},如果builder没有指定，则创建一个固定单个线程的线程池服务
+     *
+     * @param builder
+     * @return
+     */
     private Executor makeRunSafeService(CuratorFrameworkFactory.Builder builder) {
         if (builder.getRunSafeService() != null) {
             return builder.getRunSafeService();
         }
+
         ThreadFactory threadFactory = builder.getThreadFactory();
         if (threadFactory == null) {
             threadFactory = ThreadUtils.newThreadFactory("SafeNotifyService");
         }
         return Executors.newSingleThreadExecutor(threadFactory);
     }
-
     private List<AuthInfo> buildAuths(CuratorFrameworkFactory.Builder builder) {
         ImmutableList.Builder<AuthInfo> builder1 = ImmutableList.builder();
         if (builder.getAuthInfos() != null) {
@@ -214,7 +330,6 @@ public class CuratorFrameworkImpl implements CuratorFramework {
             }
         };
     }
-
     private ThreadFactory getThreadFactory(CuratorFrameworkFactory.Builder builder) {
         ThreadFactory threadFactory = builder.getThreadFactory();
         if (threadFactory == null) {
@@ -223,32 +338,7 @@ public class CuratorFrameworkImpl implements CuratorFramework {
         return threadFactory;
     }
 
-    protected CuratorFrameworkImpl(CuratorFrameworkImpl parent) {
-        client = parent.client;
-        listeners = parent.listeners;
-        unhandledErrorListeners = parent.unhandledErrorListeners;
-        threadFactory = parent.threadFactory;
-        maxCloseWaitMs = parent.maxCloseWaitMs;
-        backgroundOperations = parent.backgroundOperations;
-        forcedSleepOperations = parent.forcedSleepOperations;
-        connectionStateManager = parent.connectionStateManager;
-        defaultData = parent.defaultData;
-        failedDeleteManager = parent.failedDeleteManager;
-        failedRemoveWatcherManager = parent.failedRemoveWatcherManager;
-        compressionProvider = parent.compressionProvider;
-        aclProvider = parent.aclProvider;
-        namespaceFacadeCache = parent.namespaceFacadeCache;
-        namespace = new NamespaceImpl(this, null);
-        state = parent.state;
-        authInfos = parent.authInfos;
-        useContainerParentsIfAvailable = parent.useContainerParentsIfAvailable;
-        connectionStateErrorPolicy = parent.connectionStateErrorPolicy;
-        internalConnectionHandler = parent.internalConnectionHandler;
-        schemaSet = parent.schemaSet;
-        zk34CompatibilityMode = parent.zk34CompatibilityMode;
-        ensembleTracker = null;
-        runSafeService = parent.runSafeService;
-    }
+
 
     @Override
     public void createContainers(String path) throws Exception {
@@ -275,7 +365,6 @@ public class CuratorFrameworkImpl implements CuratorFramework {
     public boolean blockUntilConnected(int maxWaitTime, TimeUnit units) throws InterruptedException {
         return connectionStateManager.blockUntilConnected(maxWaitTime, units);
     }
-
     @Override
     public void blockUntilConnected() throws InterruptedException {
         blockUntilConnected(0, null);
@@ -384,10 +473,7 @@ public class CuratorFrameworkImpl implements CuratorFramework {
         return (str != null) ? str : "";
     }
 
-    private void checkState() {
-        CuratorFrameworkState state = getState();
-        Preconditions.checkState(state == CuratorFrameworkState.STARTED, "Expected state [%s] was [%s]", CuratorFrameworkState.STARTED, state);
-    }
+
 
     @Override
     public CuratorFramework usingNamespace(String newNamespace) {
@@ -395,83 +481,9 @@ public class CuratorFrameworkImpl implements CuratorFramework {
         return namespaceFacadeCache.get(newNamespace);
     }
 
-    @Override
-    public CreateBuilder create() {
-        checkState();
-        return new CreateBuilderImpl(this);
-    }
 
-    @Override
-    public DeleteBuilder delete() {
-        checkState();
-        return new DeleteBuilderImpl(this);
-    }
 
-    @Override
-    public ExistsBuilder checkExists() {
-        checkState();
-        return new ExistsBuilderImpl(this);
-    }
 
-    @Override
-    public GetDataBuilder getData() {
-        checkState();
-        return new GetDataBuilderImpl(this);
-    }
-
-    @Override
-    public SetDataBuilder setData() {
-        checkState();
-        return new SetDataBuilderImpl(this);
-    }
-
-    @Override
-    public GetChildrenBuilder getChildren() {
-        checkState();
-        return new GetChildrenBuilderImpl(this);
-    }
-
-    @Override
-    public GetACLBuilder getACL() {
-        checkState();
-        return new GetACLBuilderImpl(this);
-    }
-
-    @Override
-    public SetACLBuilder setACL() {
-        checkState();
-        return new SetACLBuilderImpl(this);
-    }
-
-    @Override
-    public ReconfigBuilder reconfig() {
-        Preconditions.checkState(!isZk34CompatibilityMode(), "reconfig/config APIs are not support when running in ZooKeeper 3.4 compatibility mode");
-        return new ReconfigBuilderImpl(this);
-    }
-
-    @Override
-    public GetConfigBuilder getConfig() {
-        Preconditions.checkState(!isZk34CompatibilityMode(), "reconfig/config APIs are not support when running in ZooKeeper 3.4 compatibility mode");
-        return new GetConfigBuilderImpl(this);
-    }
-
-    @Override
-    public CuratorTransaction inTransaction() {
-        checkState();
-        return new CuratorTransactionImpl(this);
-    }
-
-    @Override
-    public CuratorMultiTransaction transaction() {
-        checkState();
-        return new CuratorMultiTransactionImpl(this);
-    }
-
-    @Override
-    public TransactionOp transactionOp() {
-        checkState();
-        return new TransactionOpImpl(this);
-    }
 
     @Override
     public Listenable<ConnectionStateListener> getConnectionStateListenable() {
@@ -627,18 +639,41 @@ public class CuratorFrameworkImpl implements CuratorFramework {
         }
     }
 
+    /**
+     * 移除节点路径的命名空间
+     *
+     * @param path
+     * @return
+     */
     String unfixForNamespace(String path) {
         return namespace.unfixForNamespace(path);
     }
 
+    /**
+     * 给节点路径加上命名空间
+     *
+     * @param path
+     * @return
+     */
     String fixForNamespace(String path) {
         return namespace.fixForNamespace(path, false);
     }
 
+    /**
+     *
+     * @param path
+     * @param isSequential  该path指定的节点是否为有序的节点
+     * @return
+     */
     String fixForNamespace(String path, boolean isSequential) {
         return namespace.fixForNamespace(path, isSequential);
     }
 
+    /**
+     * 获取节点的默认数据
+     *
+     * @return
+     */
     byte[] getDefaultData() {
         return defaultData;
     }
@@ -711,11 +746,9 @@ public class CuratorFrameworkImpl implements CuratorFramework {
     public boolean isZk34CompatibilityMode() {
         return zk34CompatibilityMode;
     }
-
     EnsembleTracker getEnsembleTracker() {
         return ensembleTracker;
     }
-
     @SuppressWarnings({"ThrowableResultOfMethodCallIgnored"})
     private <DATA_TYPE> boolean checkBackgroundRetry(OperationAndData<DATA_TYPE> operationAndData, CuratorEvent event) {
         boolean doRetry = false;
@@ -746,7 +779,6 @@ public class CuratorFrameworkImpl implements CuratorFramework {
         }
         return doRetry;
     }
-
     private <DATA_TYPE> void sendToBackgroundCallback(OperationAndData<DATA_TYPE> operationAndData, CuratorEvent event) {
         try {
             operationAndData.getCallback().processResult(this, event);
@@ -755,7 +787,6 @@ public class CuratorFrameworkImpl implements CuratorFramework {
             handleBackgroundOperationException(operationAndData, e);
         }
     }
-
     private <DATA_TYPE> void handleBackgroundOperationException(OperationAndData<DATA_TYPE> operationAndData, Throwable e) {
         do {
             if ((operationAndData != null) && RetryLoop.isRetryException(e)) {
@@ -782,7 +813,6 @@ public class CuratorFrameworkImpl implements CuratorFramework {
         }
         while (false);
     }
-
     private void backgroundOperationsLoop() {
         try {
             while (state.get() == CuratorFrameworkState.STARTED) {
@@ -803,7 +833,6 @@ public class CuratorFrameworkImpl implements CuratorFramework {
             log.info("backgroundOperationsLoop exiting");
         }
     }
-
     void performBackgroundOperation(OperationAndData<?> operationAndData) {
         try {
             if (!operationAndData.isConnectionRequired() || client.isConnected()) {
@@ -836,17 +865,12 @@ public class CuratorFrameworkImpl implements CuratorFramework {
             }
         }
     }
-
-    @VisibleForTesting
-    volatile long sleepAndQueueOperationSeconds = 1;
-
     private void sleepAndQueueOperation(OperationAndData<?> operationAndData) throws InterruptedException {
         operationAndData.sleepFor(sleepAndQueueOperationSeconds, TimeUnit.SECONDS);
         if (queueOperation(operationAndData)) {
             forcedSleepOperations.add(operationAndData);
         }
     }
-
     private void unSleepBackgroundOperations() {
         Collection<OperationAndData<?>> drain = new ArrayList<>(forcedSleepOperations.size());
         forcedSleepOperations.drainTo(drain);
@@ -859,7 +883,6 @@ public class CuratorFrameworkImpl implements CuratorFramework {
             }
         }
     }
-
     private void processEvent(final CuratorEvent curatorEvent) {
         if (curatorEvent.getType() == CuratorEventType.WATCHED) {
             validateConnection(curatorEvent.getWatchedEvent().getState());
@@ -879,5 +902,12 @@ public class CuratorFrameworkImpl implements CuratorFramework {
                 return null;
             }
         });
+    }
+    /**
+     * 检查CuratorFramework是否调用过{@link #start()}
+     */
+    private void checkState() {
+        CuratorFrameworkState state = getState();
+        Preconditions.checkState(state == CuratorFrameworkState.STARTED, "Expected state [%s] was [%s]", CuratorFrameworkState.STARTED, state);
     }
 }

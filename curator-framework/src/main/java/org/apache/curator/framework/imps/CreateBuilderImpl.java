@@ -48,9 +48,11 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class CreateBuilderImpl implements CreateBuilder, CreateBuilder2, BackgroundOperation<PathAndBytes>, ErrorListenerPathAndBytesable<String> {
+
     private final Logger log = LoggerFactory.getLogger(getClass());
     private final CuratorFrameworkImpl client;
     private final ProtectedMode protectedMode = new ProtectedMode();
+    /** 节点类型，比如：临时节点/持久节点、有序节点/无序节点等 */
     private CreateMode createMode;
     private Backgrounding backgrounding;
     private boolean createParentsIfNeeded;
@@ -60,6 +62,7 @@ public class CreateBuilderImpl implements CreateBuilder, CreateBuilder2, Backgro
     private int setDataIfExistsVersion = -1;
     private ACLing acling;
     private Stat storingStat;
+    /** 节点的ttl时间 */
     private long ttl;
 
     @VisibleForTesting
@@ -670,6 +673,12 @@ public class CreateBuilderImpl implements CreateBuilder, CreateBuilder2, Backgro
         };
     }
 
+    /**
+     * 返回："_c_ + ${protectedId} + -
+     *
+     * @param protectedId
+     * @return
+     */
     private static String getProtectedPrefix(String protectedId) {
         return PROTECTED_PREFIX + protectedId + "-";
     }
@@ -1070,11 +1079,15 @@ public class CreateBuilderImpl implements CreateBuilder, CreateBuilder2, Backgro
         return returnPath;
     }
 
+
     @VisibleForTesting
     String adjustPath(String path) throws Exception {
         if (protectedMode.doProtected()) {
             ZKPaths.PathAndNode pathAndNode = ZKPaths.getPathAndNode(path);
+
+            // 获取："_c_ + ${protectedId} + -
             String name = getProtectedPrefix(protectedMode.protectedId()) + pathAndNode.getNode();
+            // 创建路径
             path = ZKPaths.makePath(pathAndNode.getPath(), name);
         }
         return path;

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -22,14 +22,16 @@ package org.apache.curator.framework.imps;
 import org.apache.zookeeper.CreateMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.util.UUID;
 
 /**
- * manage the protected mode state for {@link org.apache.curator.framework.imps.CreateBuilderImpl}
+ * 管理{@link org.apache.curator.framework.imps.CreateBuilderImpl}的保护模式状态
  */
-class ProtectedMode
-{
+class ProtectedMode {
+
     private final Logger log = LoggerFactory.getLogger(getClass());
+    /** 是否需要保护 */
     private volatile boolean doProtected = false;
     private volatile String protectedId = null;
     private volatile long sessionId = 0;
@@ -37,8 +39,7 @@ class ProtectedMode
     /**
      * Enable protected mode
      */
-    void setProtectedMode()
-    {
+    void setProtectedMode() {
         doProtected = true;
         resetProtectedId();
     }
@@ -46,44 +47,39 @@ class ProtectedMode
     /**
      * Update the protected mode ID
      */
-    void resetProtectedId()
-    {
+    void resetProtectedId() {
         protectedId = UUID.randomUUID().toString();
     }
 
     /**
      * @return true if protected mode has been enabled
      */
-    boolean doProtected()
-    {
+    boolean doProtected() {
         return doProtected;
     }
 
     /**
      * @return the protected mode ID if protected mode is enabled
      */
-    String protectedId()
-    {
+    String protectedId() {
         return protectedId;
     }
 
     /**
-     * Record the current session ID if needed
+     * 记录当前会话ID（如果需要）
      *
      * @param client current client
      * @param createMode create mode in use
      * @throws Exception errors
      */
-    void checkSetSessionId(CuratorFrameworkImpl client, CreateMode createMode) throws Exception
-    {
-        if ( doProtected && (sessionId == 0) && createMode.isEphemeral() )
-        {
+    void checkSetSessionId(CuratorFrameworkImpl client, CreateMode createMode) throws Exception {
+        if (doProtected && (sessionId == 0) && createMode.isEphemeral()) {
             sessionId = client.getZooKeeper().getSessionId();
         }
     }
 
     /**
-     * Validate the found protected-mode node based on the set session ID, etc.
+     * 根据设置的会话ID等来验证找到的保护模式节点。
      *
      * @param client current client
      * @param createMode create mode in use
@@ -91,16 +87,12 @@ class ProtectedMode
      * @return either the found node or null - client should always use the returned value
      * @throws Exception errors
      */
-    String validateFoundNode(CuratorFrameworkImpl client, CreateMode createMode, String foundNode) throws Exception
-    {
-        if ( doProtected && createMode.isEphemeral() )
-        {
+    String validateFoundNode(CuratorFrameworkImpl client, CreateMode createMode, String foundNode) throws Exception {
+        if (doProtected && createMode.isEphemeral()) {
             long clientSessionId = client.getZooKeeper().getSessionId();
-            if ( this.sessionId != clientSessionId )
-            {
+            if (this.sessionId != clientSessionId) {
                 log.info("Session has changed during protected mode with ephemeral. old: {} new: {}", this.sessionId, clientSessionId);
-                if ( foundNode != null )
-                {
+                if (foundNode != null) {
                     log.info("Deleted old session's found node: {}", foundNode);
                     client.getFailedDeleteManager().executeGuaranteedOperationInBackground(foundNode);
                     foundNode = null;
