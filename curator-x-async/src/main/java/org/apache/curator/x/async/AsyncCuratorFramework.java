@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -24,14 +24,14 @@ import org.apache.curator.framework.api.UnhandledErrorListener;
 import org.apache.curator.x.async.api.AsyncCuratorFrameworkDsl;
 import org.apache.curator.x.async.details.AsyncCuratorFrameworkImpl;
 import org.apache.zookeeper.WatchedEvent;
+
 import java.util.function.UnaryOperator;
 
 /**
  * Zookeeper framework-style client that returns composable async operations
  * that implement {@link java.util.concurrent.CompletionStage}
  */
-public interface AsyncCuratorFramework extends AsyncCuratorFrameworkDsl
-{
+public interface AsyncCuratorFramework extends AsyncCuratorFrameworkDsl {
     /**
      * Takes an old-style Curator instance and returns a new async instance that
      * wraps it. Note: the instance must have been created through a chain that
@@ -42,8 +42,7 @@ public interface AsyncCuratorFramework extends AsyncCuratorFrameworkDsl
      * @param client instance to wrap
      * @return wrapped instance
      */
-    static AsyncCuratorFramework wrap(CuratorFramework client)
-    {
+    static AsyncCuratorFramework wrap(CuratorFramework client) {
         return new AsyncCuratorFrameworkImpl(client);
     }
 

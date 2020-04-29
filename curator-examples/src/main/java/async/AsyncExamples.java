@@ -31,11 +31,23 @@ import java.util.concurrent.CompletionStage;
  */
 public class AsyncExamples {
 
+    /**
+     * 示例1：包装一个CuratorFramework实例，以便可以异步使用它。一次执行一次，然后重新使用返回的AsyncCuratorFramework实例
+     *
+     * @param client
+     * @return
+     */
     public static AsyncCuratorFramework wrap(CuratorFramework client) {
-        // 包装一个CuratorFramework实例，以便可以异步使用它。一次执行一次，然后重新使用返回的AsyncCuratorFramework实例
         return AsyncCuratorFramework.wrap(client);
     }
 
+    /**
+     * 示例2：用异步的方式创建一个节点
+     *
+     * @param client
+     * @param path
+     * @param payload
+     */
     public static void create(CuratorFramework client, String path, byte[] payload) {
 
         // 通常，您会在应用程序的早期包装好并重用实例
@@ -52,6 +64,12 @@ public class AsyncExamples {
         });
     }
 
+    /**
+     * 示例3：用异步的方式创建一个watcher
+     *
+     * @param client
+     * @param path
+     */
     public static void createThenWatch(CuratorFramework client, String path) {
 
         // 通常，您会在应用程序的早期包装好并重用实例
@@ -83,7 +101,12 @@ public class AsyncExamples {
                 exception.printStackTrace();
             } else {
                 // 因为使用了“ WatchMode.successOnly”，所以仅在EventType是节点事件时才触发监视阶段
-                async.with(WatchMode.successOnly).watched().checkExists().forPath(path).event().thenAccept(event -> {
+                async.with(WatchMode.successOnly)
+                        .watched()
+                        .checkExists()
+                        .forPath(path)
+                        .event()
+                        .thenAccept(event -> {
                     System.out.println(event.getType());
                     System.out.println(event);
                 });
