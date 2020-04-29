@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -27,43 +27,34 @@ import org.apache.curator.utils.Compatibility;
 import org.apache.curator.utils.ThreadUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.Closeable;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Used internally to manage connection state
+ * 在内部用于管理连接状态
  */
-public class ConnectionStateManager implements Closeable
-{
+public class ConnectionStateManager implements Closeable {
+
+    private final Logger log = LoggerFactory.getLogger(getClass());
+
     private static final int QUEUE_SIZE;
 
-    static
-    {
+    static {
         int size = 25;
         String property = System.getProperty("ConnectionStateManagerSize", null);
-        if ( property != null )
-        {
-            try
-            {
+        if (property != null) {
+            try {
                 size = Integer.parseInt(property);
-            }
-            catch ( NumberFormatException ignore )
-            {
+            } catch (NumberFormatException ignore) {
                 // ignore
             }
         }
         QUEUE_SIZE = size;
     }
 
-    private final Logger log = LoggerFactory.getLogger(getClass());
     private final BlockingQueue<ConnectionState> eventQueue = new ArrayBlockingQueue<ConnectionState>(QUEUE_SIZE);
     private final CuratorFramework client;
     private final int sessionTimeoutMs;
@@ -72,18 +63,15 @@ public class ConnectionStateManager implements Closeable
     private final ExecutorService service;
     private final AtomicReference<State> state = new AtomicReference<State>(State.LATENT);
     private final UnaryListenerManager<ConnectionStateListener> listeners;
-
-    // guarded by sync
+    // 同步保护
     private ConnectionState currentConnectionState;
-
     private volatile long startOfSuspendedEpoch = 0;
-
-    private enum State
-    {
+    private enum State {
         LATENT,
         STARTED,
         CLOSED
     }
+
 
     /**
      * @param client        the client
@@ -91,11 +79,9 @@ public class ConnectionStateManager implements Closeable
      * @param sessionTimeoutMs the ZK session timeout in milliseconds
      * @param sessionExpirationPercent percentage of negotiated session timeout to use when simulating a session timeout. 0 means don't simulate at all
      */
-    public ConnectionStateManager(CuratorFramework client, ThreadFactory threadFactory, int sessionTimeoutMs, int sessionExpirationPercent)
-    {
+    public ConnectionStateManager(CuratorFramework client, ThreadFactory threadFactory, int sessionTimeoutMs, int sessionExpirationPercent) {
         this(client, threadFactory, sessionTimeoutMs, sessionExpirationPercent, ConnectionStateListenerManagerFactory.standard);
     }
-
     /**
      * @param client        the client
      * @param threadFactory thread factory to use or null for a default
@@ -103,45 +89,35 @@ public class ConnectionStateManager implements Closeable
      * @param sessionExpirationPercent percentage of negotiated session timeout to use when simulating a session timeout. 0 means don't simulate at all
      * @param managerFactory manager factory to use
      */
-    public ConnectionStateManager(CuratorFramework client, ThreadFactory threadFactory, int sessionTimeoutMs, int sessionExpirationPercent, ConnectionStateListenerManagerFactory managerFactory)
-    {
+    public ConnectionStateManager(CuratorFramework client, ThreadFactory threadFactory, int sessionTimeoutMs, int sessionExpirationPercent, ConnectionStateListenerManagerFactory managerFactory) {
         this.client = client;
         this.sessionTimeoutMs = sessionTimeoutMs;
         this.sessionExpirationPercent = sessionExpirationPercent;
-        if ( threadFactory == null )
-        {
+        if (threadFactory == null) {
             threadFactory = ThreadUtils.newThreadFactory("ConnectionStateManager");
         }
         service = Executors.newSingleThreadExecutor(threadFactory);
         listeners = managerFactory.newManager(client);
     }
 
+
     /**
      * Start the manager
      */
-    public void start()
-    {
+    public void start() {
         Preconditions.checkState(state.compareAndSet(State.LATENT, State.STARTED), "Cannot be started more than once");
-
-        service.submit
-            (
-                new Callable<Object>()
-                {
-                    @Override
-                    public Object call() throws Exception
-                    {
-                        processEvents();
-                        return null;
-                    }
-                }
-            );
+        service.submit(new Callable<Object>() {
+            @Override
+            public Object call() throws Exception {
+                processEvents();
+                return null;
+            }
+        });
     }
 
     @Override
-    public void close()
-    {
-        if ( state.compareAndSet(State.STARTED, State.CLOSED) )
-        {
+    public void close() {
+        if (state.compareAndSet(State.STARTED, State.CLOSED)) {
             service.shutdownNow();
             listeners.clear();
         }
@@ -153,8 +129,7 @@ public class ConnectionStateManager implements Closeable
      * @return listenable
      * @since 4.2.0 return type has changed from ListenerContainer to Listenable
      */
-    public Listenable<ConnectionStateListener> getListenable()
-    {
+    public Listenable<ConnectionStateListener> getListenable() {
         return listeners;
     }
 
@@ -163,15 +138,12 @@ public class ConnectionStateManager implements Closeable
      *
      * @return true if connection is set to SUSPENDED
      */
-    public synchronized boolean setToSuspended()
-    {
-        if ( state.get() != State.STARTED )
-        {
+    public synchronized boolean setToSuspended() {
+        if (state.get() != State.STARTED) {
             return false;
         }
 
-        if ( (currentConnectionState == ConnectionState.LOST) || (currentConnectionState == ConnectionState.SUSPENDED) )
-        {
+        if ((currentConnectionState == ConnectionState.LOST) || (currentConnectionState == ConnectionState.SUSPENDED)) {
             return false;
         }
 
@@ -188,24 +160,20 @@ public class ConnectionStateManager implements Closeable
      * @param newConnectionState new state
      * @return true if the state actually changed, false if it was already at that state
      */
-    public synchronized boolean addStateChange(ConnectionState newConnectionState)
-    {
-        if ( state.get() != State.STARTED )
-        {
+    public synchronized boolean addStateChange(ConnectionState newConnectionState) {
+        if (state.get() != State.STARTED) {
             return false;
         }
 
         ConnectionState previousState = currentConnectionState;
-        if ( previousState == newConnectionState )
-        {
+        if (previousState == newConnectionState) {
             return false;
         }
         setCurrentConnectionState(newConnectionState);
 
         ConnectionState localState = newConnectionState;
         boolean isNegativeMessage = ((newConnectionState == ConnectionState.LOST) || (newConnectionState == ConnectionState.SUSPENDED) || (newConnectionState == ConnectionState.READ_ONLY));
-        if ( !isNegativeMessage && initialConnectMessageSent.compareAndSet(false, true) )
-        {
+        if (!isNegativeMessage && initialConnectMessageSent.compareAndSet(false, true)) {
             localState = ConnectionState.CONNECTED;
         }
 
@@ -214,81 +182,62 @@ public class ConnectionStateManager implements Closeable
         return true;
     }
 
-    public synchronized boolean blockUntilConnected(int maxWaitTime, TimeUnit units) throws InterruptedException
-    {
+    public synchronized boolean blockUntilConnected(int maxWaitTime, TimeUnit units) throws InterruptedException {
         long startTime = System.currentTimeMillis();
 
         boolean hasMaxWait = (units != null);
         long maxWaitTimeMs = hasMaxWait ? TimeUnit.MILLISECONDS.convert(maxWaitTime, units) : 0;
 
-        while ( !isConnected() )
-        {
-            if ( hasMaxWait )
-            {
+        while (!isConnected()) {
+            if (hasMaxWait) {
                 long waitTime = maxWaitTimeMs - (System.currentTimeMillis() - startTime);
-                if ( waitTime <= 0 )
-                {
+                if (waitTime <= 0) {
                     return isConnected();
                 }
 
                 wait(waitTime);
-            }
-            else
-            {
+            } else {
                 wait();
             }
         }
         return isConnected();
     }
 
-    public synchronized boolean isConnected()
-    {
+    public synchronized boolean isConnected() {
         return (currentConnectionState != null) && currentConnectionState.isConnected();
     }
 
-    private void postState(ConnectionState state)
-    {
+    private void postState(ConnectionState state) {
         log.info("State change: " + state);
 
         notifyAll();
 
-        while ( !eventQueue.offer(state) )
-        {
+        while (!eventQueue.offer(state)) {
             eventQueue.poll();
             log.warn("ConnectionStateManager queue full - dropping events to make room");
         }
     }
 
-    private void processEvents()
-    {
-        while ( state.get() == State.STARTED )
-        {
-            try
-            {
+    private void processEvents() {
+        while (state.get() == State.STARTED) {
+            try {
                 int useSessionTimeoutMs = getUseSessionTimeoutMs();
                 long elapsedMs = startOfSuspendedEpoch == 0 ? useSessionTimeoutMs / 2 : System.currentTimeMillis() - startOfSuspendedEpoch;
                 long pollMaxMs = useSessionTimeoutMs - elapsedMs;
 
                 final ConnectionState newState = eventQueue.poll(pollMaxMs, TimeUnit.MILLISECONDS);
-                if ( newState != null )
-                {
-                    if ( listeners.isEmpty() )
-                    {
+                if (newState != null) {
+                    if (listeners.isEmpty()) {
                         log.warn("There are no ConnectionStateListeners registered.");
                     }
 
                     listeners.forEach(listener -> listener.stateChanged(client, newState));
-                }
-                else if ( sessionExpirationPercent > 0 )
-                {
-                    synchronized(this)
-                    {
+                } else if (sessionExpirationPercent > 0) {
+                    synchronized (this) {
                         checkSessionExpiration();
                     }
                 }
-            }
-            catch ( InterruptedException e )
-            {
+            } catch (InterruptedException e) {
                 // swallow the interrupt as it's only possible from either a background
                 // operation and, thus, doesn't apply to this loop or the instance
                 // is being closed in which case the while test will get it
@@ -296,42 +245,31 @@ public class ConnectionStateManager implements Closeable
         }
     }
 
-    private void checkSessionExpiration()
-    {
-        if ( (currentConnectionState == ConnectionState.SUSPENDED) && (startOfSuspendedEpoch != 0) )
-        {
+    private void checkSessionExpiration() {
+        if ((currentConnectionState == ConnectionState.SUSPENDED) && (startOfSuspendedEpoch != 0)) {
             long elapsedMs = System.currentTimeMillis() - startOfSuspendedEpoch;
             int useSessionTimeoutMs = getUseSessionTimeoutMs();
-            if ( elapsedMs >= useSessionTimeoutMs )
-            {
-                startOfSuspendedEpoch = System.currentTimeMillis(); // reset startOfSuspendedEpoch to avoid spinning on this session expiration injection CURATOR-405
+            if (elapsedMs >= useSessionTimeoutMs) {
+                // reset startOfSuspendedEpoch to avoid spinning on this session expiration injection CURATOR-405
+                startOfSuspendedEpoch = System.currentTimeMillis();
                 log.warn(String.format("Session timeout has elapsed while SUSPENDED. Injecting a session expiration. Elapsed ms: %d. Adjusted session timeout ms: %d", elapsedMs, useSessionTimeoutMs));
-                try
-                {
+                try {
                     Compatibility.injectSessionExpiration(client.getZookeeperClient().getZooKeeper());
-                }
-                catch ( Exception e )
-                {
+                } catch (Exception e) {
                     log.error("Could not inject session expiration", e);
                 }
             }
-        }
-        else if ( currentConnectionState == ConnectionState.LOST )
-        {
-            try
-            {
+        } else if (currentConnectionState == ConnectionState.LOST) {
+            try {
                 // give ConnectionState.checkTimeouts() a chance to run, reset ensemble providers, etc.
                 client.getZookeeperClient().getZooKeeper();
-            }
-            catch ( Exception e )
-            {
+            } catch (Exception e) {
                 log.error("Could not get ZooKeeper", e);
             }
         }
     }
 
-    private void setCurrentConnectionState(ConnectionState newConnectionState)
-    {
+    private void setCurrentConnectionState(ConnectionState newConnectionState) {
         currentConnectionState = newConnectionState;
         startOfSuspendedEpoch = (currentConnectionState == ConnectionState.SUSPENDED) ? System.currentTimeMillis() : 0;
     }

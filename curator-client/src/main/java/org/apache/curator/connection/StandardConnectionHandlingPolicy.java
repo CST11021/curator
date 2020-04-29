@@ -72,11 +72,22 @@ public class StandardConnectionHandlingPolicy implements ConnectionHandlingPolic
         return result;
     }
 
+    /**
+     * 检查超时，注意：仅在尝试访问ZooKeeper实例且连接未完成时才调用此方法。
+     *
+     * @param hasNewConnectionString 该Callable调用以检查是否有新的连接字符串。重要提示：调用此状态后，内部状态会清除，因此如果返回非null，则必须处理新的连接字符串
+     * @param connectionStartMs the epoch/ms time that the connection was first initiated
+     * @param sessionTimeoutMs the configured/negotiated session timeout in milliseconds
+     * @param connectionTimeoutMs the configured connection timeout in milliseconds
+     * @return result
+     * @throws Exception errors
+     */
     @Override
     public CheckTimeoutsResult checkTimeouts(Callable<String> hasNewConnectionString, long connectionStartMs, int sessionTimeoutMs, int connectionTimeoutMs) throws Exception {
         if (hasNewConnectionString.call() != null) {
             return CheckTimeoutsResult.NEW_CONNECTION_STRING;
         }
+
         return CheckTimeoutsResult.NOP;
     }
 }

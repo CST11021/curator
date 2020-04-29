@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,10 +19,10 @@
 package org.apache.curator.framework.api;
 
 import org.apache.curator.framework.api.transaction.CuratorTransactionResult;
-import org.apache.zookeeper.OpResult;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
+
 import java.util.List;
 
 /**
@@ -31,8 +31,8 @@ import java.util.List;
  * IMPORTANT: the methods only return values as specified by the operation that generated them. Many methods
  * will return <tt>null</tt>
  */
-public interface CuratorEvent
-{
+public interface CuratorEvent {
+
     /**
      * check here first - this value determines the type of event and which methods will have
      * valid values
@@ -93,4 +93,5 @@ public interface CuratorEvent
      * @return any WatchedEvent
      */
     public WatchedEvent getWatchedEvent();
+
 }

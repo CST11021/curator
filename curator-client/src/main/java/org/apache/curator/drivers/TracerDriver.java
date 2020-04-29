@@ -21,24 +21,24 @@ package org.apache.curator.drivers;
 import java.util.concurrent.TimeUnit;
 
 /**
- *计时方法和记录计数器的机制
+ * 计时方法和记录计数器的机制
  */
 public interface TracerDriver {
 
     /**
-     * 记录给定的跟踪事件
+     * 记录给定的跟踪事件(打印一条相应的日志)
      *
-     * @param name of the event
-     * @param time time event took
-     * @param unit time unit
+     * @param name  事件名称
+     * @param time  时间
+     * @param unit  对应time的单位
      */
     public void addTrace(String name, long time, TimeUnit unit);
 
     /**
-     * 添加到命名计数器
+     * 打印一条相应的日志，记录日志
      *
-     * @param name name of the counter
-     * @param increment amount to increment
+     * @param name      计数器的名称
+     * @param increment 当前计数器累计数量
      */
     public void addCount(String name, int increment);
 }

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -22,39 +22,27 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.zookeeper.ZooKeeper;
 
 /**
- * <p>
- *     Transactional/atomic operations. See {@link ZooKeeper#multi(Iterable)} for
- *     details on ZooKeeper transactions.
- * </p>
+ * 事务/原子操作。有关ZooKeeper事务的详细信息，请参见{@link ZooKeeper#multi(Iterable)}。
  *
- * <p>
- *     The general form for this interface is:
- * </p>
- *     <pre>
+ * 该接口的一般形式为：
+ *
  *         curator.inTransaction().operation().arguments().forPath(...).
  *             and().more-operations.
  *             and().commit();
- *     </pre>
  *
- * <p>
- *     Here's an example that creates two nodes in a transaction
- * </p>
- *     <pre>
+ *
+ * 这是一个在事务中创建两个节点的示例
  *         curator.inTransaction().
  *             create().forPath("/path-one", path-one-data).
  *             and().create().forPath("/path-two", path-two-data).
  *             and().commit();
- *     </pre>
  *
- * <p>
- *     <b>Important:</b> the operations are not submitted until
- *     {@link CuratorTransactionFinal#commit()} is called.
- * </p>
+ * 重要提示：在调用{@link CuratorTransactionFinal#commit()}之前，不会提交操作。
  *
  * @deprecated Use {@link CuratorFramework#transaction()}
  */
-public interface CuratorTransaction
-{
+public interface CuratorTransaction {
+
     /**
      * Start a create builder in the transaction
      *
@@ -82,4 +70,5 @@ public interface CuratorTransaction
      * @return builder object
      */
     public TransactionCheckBuilder<CuratorTransactionBridge> check();
+
 }

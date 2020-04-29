@@ -25,7 +25,7 @@ import java.io.UnsupportedEncodingException;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Used to trace the metrics of a certain Zookeeper operation.
+ * 用于跟踪某个Zookeeper操作的指标。
  */
 public class OperationTrace {
     private final String name;
@@ -151,6 +151,8 @@ public class OperationTrace {
     public void commit() {
         long elapsed = System.nanoTime() - startTimeNanos;
         this.latencyMs = TimeUnit.MILLISECONDS.convert(elapsed, TimeUnit.NANOSECONDS);
+
+        // 打印日志
         if (this.driver instanceof AdvancedTracerDriver) {
             ((AdvancedTracerDriver) this.driver).addTrace(this);
         } else {

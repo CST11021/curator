@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -26,43 +26,28 @@ import org.apache.zookeeper.Watcher;
 /**
  * Represents state changes in the connection to ZK
  */
-public enum ConnectionState
-{
-    /**
-     * Sent for the first successful connection to the server. NOTE: You will only
-     * get one of these messages for any CuratorFramework instance.
-     */
-    CONNECTED
-    {
-        public boolean isConnected()
-        {
+public enum ConnectionState {
+
+    /** 发送以首次成功连接到服务器。注意：对于任何CuratorFramework实例，您只会收到这些消息之一。 */
+    CONNECTED {
+        public boolean isConnected() {
             return true;
         }
     },
-
     /**
-     * There has been a loss of connection. Leaders, locks, etc. should suspend
-     * until the connection is re-established.
+     * 失去了联系。领导者，锁等应暂停，直到重新建立连接。
      */
-    SUSPENDED
-    {
-        public boolean isConnected()
-        {
+    SUSPENDED {
+        public boolean isConnected() {
             return false;
         }
-    },    
-
-    /**
-     * A suspended, lost, or read-only connection has been re-established
-     */
-    RECONNECTED
-    {
-        public boolean isConnected()
-        {
+    },
+    /** 暂停，丢失或只读连接已重新建立 */
+    RECONNECTED {
+        public boolean isConnected() {
             return true;
         }
     },
-
     /**
      * <p>
      *     Curator will set the LOST state when it believes that the ZooKeeper session
@@ -79,14 +64,11 @@ public enum ConnectionState
      *     change in meaning to LOST since 3.0.0
      * </p>
      */
-    LOST
-    {
-        public boolean isConnected()
-        {
+    LOST {
+        public boolean isConnected() {
             return false;
         }
     },
-
     /**
      * The connection has gone into read-only mode. This can only happen if you pass true
      * for {@link CuratorFrameworkFactory.Builder#canBeReadOnly()}. See the ZooKeeper doc
@@ -94,19 +76,17 @@ public enum ConnectionState
      * <a href="http://wiki.apache.org/hadoop/ZooKeeper/GSoCReadOnlyMode">http://wiki.apache.org/hadoop/ZooKeeper/GSoCReadOnlyMode</a>.
      * The connection will remain in read only mode until another state change is sent.
      */
-    READ_ONLY
-    {
-        public boolean isConnected()
-        {
+    READ_ONLY {
+        public boolean isConnected() {
             return true;
         }
-    }
+    };
 
-    ;
-    
     /**
-     * Check if this state indicates that Curator has a connection to ZooKeeper
-     * 
+     * 返回是否连接上了zk服务
+     * 已连接的状态：CONNECTED、RECONNECTED、READ_ONLY
+     * 未连接的状态：SUSPENDED、LOST
+     *
      * @return True if connected, false otherwise
      */
     public abstract boolean isConnected();

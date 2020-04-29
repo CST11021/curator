@@ -29,9 +29,9 @@ import java.util.concurrent.Callable;
 public interface ConnectionHandlingPolicy {
 
     enum CheckTimeoutsResult {
-        /** Do nothing */
+        /** 表示连接正常 */
         NOP,
-        /** 处理新的连接字符串*/
+        /** 处理新的连接字符串，zk集群的连接字符串可能是动态的 */
         NEW_CONNECTION_STRING,
         /** reset/recreate the internal ZooKeeper connection */
         RESET_CONNECTION,
@@ -42,30 +42,19 @@ public interface ConnectionHandlingPolicy {
     }
 
     /**
-     * <p>
-     *     Prior to 3.0.0, Curator did not try to manage session expiration
-     *     other than the functionality provided by ZooKeeper itself. Starting with
-     *     3.0.0, Curator has the option of attempting to monitor session expiration
-     *     above what is provided by ZooKeeper. The percentage returned by this method
-     *     determines how and if Curator will check for session expiration.
-     * </p>
+     * 在3.0.0之前的版本中，Curator除了ZooKeeper本身提供的功能外，没有尝试管理会话到期。
+     * 从3.0.0版本开始，Curator可以选择尝试监视超出ZooKeeper提供的会话到期时间。
+     * 此方法返回的百分比确定Curator如何以及是否检查会话到期。
      *
-     * <p>
-     *     If this method returns <tt>0</tt>, Curator does not
-     *     do any additional checking for session expiration.
-     * </p>
      *
-     * <p>
-     *     If a positive number is returned, Curator will check for session expiration
-     *     as follows: when ZooKeeper sends a Disconnect event, Curator will start a timer.
-     *     If re-connection is not achieved before the elapsed time exceeds the negotiated
-     *     session time multiplied by the session expiration percent, Curator will simulate
-     *     a session expiration. Due to timing/network issues, it is <b>not possible</b> for
-     *     a client to match the server's session timeout with complete accuracy. Thus, the need
-     *     for a session expiration percentage.
-     * </p>
+     * 如果此方法返回0，则Curator不会对会话到期做任何其他检查。
      *
-     * @return a percentage from 0 to 100 (0 implied no extra session checking)
+     *
+     * 如果返回正数，则Curator将检查会话是否过期，如下所示：当ZooKeeper发送Disconnect事件时，Curator将启动计时器。
+     * 如果在经过的时间超过协商的会话时间乘以会话到期百分比之前未实现重新连接，则Curator将模拟会话到期。
+     * 由于时间/网络问题，客户端无法完全准确地匹配服务器的会话超时。因此，需要会话到期百分比。
+     *
+     * @return 从0到100的百分比（0表示不进行额外的会话检查）
      */
     int getSimulatedSessionExpirationPercent();
 

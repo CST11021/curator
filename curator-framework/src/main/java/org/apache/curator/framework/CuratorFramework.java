@@ -51,24 +51,62 @@ public interface CuratorFramework extends Closeable {
      * Stop the client
      */
     public void close();
-
     /**
-     * Returns the state of this instance
-     *
-     * @return state
-     */
-    public CuratorFrameworkState getState();
-
-    /**
-     * Return true if the client is started, not closed, etc.
+     * 如果客户端已启动，未关闭等，则返回true。
      *
      * @return true/false
      * @deprecated use {@link #getState()} instead
      */
     @Deprecated
     public boolean isStarted();
+    /**
+     * 返回此实例的状态
+     *
+     * @return state
+     */
+    public CuratorFrameworkState getState();
+
+    // 阻塞直到连上zk
+
+    /**
+     * Block until a connection to ZooKeeper is available or the maxWaitTime has been exceeded
+     * @param maxWaitTime The maximum wait time. Specify a value &lt;= 0 to wait indefinitely
+     * @param units The time units for the maximum wait time.
+     * @return True if connection has been established, false otherwise.
+     * @throws InterruptedException If interrupted while waiting
+     */
+    public boolean blockUntilConnected(int maxWaitTime, TimeUnit units) throws InterruptedException;
+    /**
+     * Block until a connection to ZooKeeper is available. This method will not return until a
+     * connection is available or it is interrupted, in which case an InterruptedException will
+     * be thrown
+     * @throws InterruptedException If interrupted while waiting
+     */
+    public void blockUntilConnected() throws InterruptedException;
 
 
+    // 设置隔离命名空间
+
+    /**
+     * Returns a facade of the current instance that does _not_ automatically pre-pend the namespace to all paths
+     *
+     * @return facade
+     * @deprecated Since 2.9.0 - use {@link #usingNamespace} passing <code>null</code>
+     */
+    @Deprecated
+    public CuratorFramework nonNamespaceView();
+    /**
+     * Returns a facade of the current instance that uses the specified namespace
+     * or no namespace if <code>newNamespace</code> is <code>null</code>.
+     *
+     * @param newNamespace the new namespace or null for none
+     * @return facade
+     */
+    public CuratorFramework usingNamespace(String newNamespace);
+
+
+
+    // 操作节点
 
     /**
      * Start a create builder
@@ -133,11 +171,24 @@ public interface CuratorFramework extends Closeable {
      * @return builder object
      */
     public GetConfigBuilder getConfig();
+    /**
+     * Start a remove watches builder.
+     * @return builder object
+     */
+    public RemoveWatchesBuilder watches();
+    /**
+     * 如果指定的路径中的所有节点都不存在，则将它们创建为容器
+     *
+     * @param path path to create
+     * @throws Exception errors
+     */
+    public void createContainers(String path) throws Exception;
 
 
+    // 事务操作
 
     /**
-     * Start a transaction builder
+     * 启动事务构建器
      *
      * @return builder object
      * @deprecated use {@link #transaction()} instead
@@ -158,25 +209,7 @@ public interface CuratorFramework extends Closeable {
      */
     public TransactionOp transactionOp();
 
-
-
-    /**
-     * Perform a sync on the given path - syncs are always in the background
-     *
-     * @param path                    the path
-     * @param backgroundContextObject optional context
-     * @deprecated use {@link #sync()} instead
-     */
-    @Deprecated
-    public void sync(String path, Object backgroundContextObject);
-
-    /**
-     * 如果指定的路径中的所有节点都不存在，则将它们创建为容器
-     *
-     * @param path path to create
-     * @throws Exception errors
-     */
-    public void createContainers(String path) throws Exception;
+    // 同步
 
     /**
      * 启动同步构建器。注意：即使您不使用background()方法之一，同步始终在后台进行
@@ -185,54 +218,73 @@ public interface CuratorFramework extends Closeable {
      */
     public SyncBuilder sync();
 
-    /**
-     * Start a remove watches builder.
-     * @return builder object
-     */
-    public RemoveWatchesBuilder watches();
+
+
+
+
 
     /**
-     * 返回连接状态的可监听接口
+     * 返回连接状态的接听列表
      *
      * @return listenable
      */
     public Listenable<ConnectionStateListener> getConnectionStateListenable();
 
     /**
-     * 返回事件的可监听接口
+     * 返回节点事件监听列表
      *
      * @return listenable
      */
     public Listenable<CuratorListener> getCuratorListenable();
 
     /**
-     * Returns the listenable interface for unhandled errors
+     * 在后台线程处理过程中捕获异常时会通知该监听
      *
      * @return listenable
      */
     public Listenable<UnhandledErrorListener> getUnhandledErrorListenable();
 
     /**
-     * Returns a facade of the current instance that does _not_ automatically
-     * pre-pend the namespace to all paths
+     * 通过{@link WatcherRemoveCuratorFramework#removeWatchers()}可以一次性移除所有的Watcher
      *
      * @return facade
-     * @deprecated Since 2.9.0 - use {@link #usingNamespace} passing <code>null</code>
      */
-    @Deprecated
-    public CuratorFramework nonNamespaceView();
+    public WatcherRemoveCuratorFramework newWatcherRemoveCuratorFramework();
 
     /**
-     * Returns a facade of the current instance that uses the specified namespace
-     * or no namespace if <code>newNamespace</code> is <code>null</code>.
+     * Return the configured error policy
      *
-     * @param newNamespace the new namespace or null for none
-     * @return facade
+     * @return error policy
      */
-    public CuratorFramework usingNamespace(String newNamespace);
+    public ConnectionStateErrorPolicy getConnectionStateErrorPolicy();
 
 
+    /**
+     * 可以使用它来运行notifyAll和其他通常可能会阻止ZooKeeper的事件线程的阻止调用
+     *
+     * @param runnable proc to call from a safe internal thread
+     * @return a CompletableFuture that can be used to monitor when the call is complete
+     * @since 4.1.0
+     */
+    CompletableFuture<Void> runSafe(Runnable runnable);
+    /**
+     * Calls {@link #notifyAll()} on the given object after first synchronizing on it. This is
+     * done from the {@link #runSafe(Runnable)} thread.
+     *
+     * @param monitorHolder object to sync on and notify
+     * @return a CompletableFuture that can be used to monitor when the call is complete
+     * @since 4.1.0
+     */
+    default CompletableFuture<Void> postSafeNotify(Object monitorHolder) {
+        return runSafe(() -> {
+            synchronized (monitorHolder) {
+                monitorHolder.notifyAll();
+            }
+        });
+    }
 
+
+    // 提取其他组件
 
     /**
      * 返回托管的Zookeeper客户端
@@ -268,6 +320,15 @@ public interface CuratorFramework extends Closeable {
 
 
     /**
+     * 在给定的路径上执行同步-同步始终在后台
+     *
+     * @param path                    the path
+     * @param backgroundContextObject optional context
+     * @deprecated use {@link #sync()} instead
+     */
+    @Deprecated
+    public void sync(String path, Object backgroundContextObject);
+    /**
      * Allocates an ensure path instance that is namespace aware
      *
      * @param path path to ensure
@@ -277,7 +338,6 @@ public interface CuratorFramework extends Closeable {
      */
     @Deprecated
     public EnsurePath newNamespaceAwareEnsurePath(String path);
-
     /**
      * Curator can hold internal references to watchers that may inhibit garbage collection.
      * Call this method on watchers you are no longer interested in.
@@ -291,68 +351,5 @@ public interface CuratorFramework extends Closeable {
      */
     @Deprecated
     public void clearWatcherReferences(Watcher watcher);
-
-
-    /**
-     * Block until a connection to ZooKeeper is available or the maxWaitTime has been exceeded
-     * @param maxWaitTime The maximum wait time. Specify a value &lt;= 0 to wait indefinitely
-     * @param units The time units for the maximum wait time.
-     * @return True if connection has been established, false otherwise.
-     * @throws InterruptedException If interrupted while waiting
-     */
-    public boolean blockUntilConnected(int maxWaitTime, TimeUnit units) throws InterruptedException;
-    /**
-     * Block until a connection to ZooKeeper is available. This method will not return until a
-     * connection is available or it is interrupted, in which case an InterruptedException will
-     * be thrown
-     * @throws InterruptedException If interrupted while waiting
-     */
-    public void blockUntilConnected() throws InterruptedException;
-
-
-
-    /**
-     * Returns a facade of the current instance that tracks
-     * watchers created and allows a one-shot removal of all watchers
-     * via {@link WatcherRemoveCuratorFramework#removeWatchers()}
-     *
-     * @return facade
-     */
-    public WatcherRemoveCuratorFramework newWatcherRemoveCuratorFramework();
-
-    /**
-     * Return the configured error policy
-     *
-     * @return error policy
-     */
-    public ConnectionStateErrorPolicy getConnectionStateErrorPolicy();
-
-
-
-
-
-    /**
-     * Curater（和用户）可以使用它来运行notifyAll和其他通常可能会阻止ZooKeeper的事件线程的阻止调用
-     *
-     * @param runnable proc to call from a safe internal thread
-     * @return a CompletableFuture that can be used to monitor when the call is complete
-     * @since 4.1.0
-     */
-    CompletableFuture<Void> runSafe(Runnable runnable);
-    /**
-     * Calls {@link #notifyAll()} on the given object after first synchronizing on it. This is
-     * done from the {@link #runSafe(Runnable)} thread.
-     *
-     * @param monitorHolder object to sync on and notify
-     * @return a CompletableFuture that can be used to monitor when the call is complete
-     * @since 4.1.0
-     */
-    default CompletableFuture<Void> postSafeNotify(Object monitorHolder) {
-        return runSafe(() -> {
-            synchronized (monitorHolder) {
-                monitorHolder.notifyAll();
-            }
-        });
-    }
 
 }

@@ -27,7 +27,6 @@ public class EventTrace {
     public EventTrace(String name, TracerDriver driver) {
         this(name, driver, -1);
     }
-
     public EventTrace(String name, TracerDriver driver, long sessionId) {
         this.name = name;
         this.driver = driver;
@@ -43,6 +42,7 @@ public class EventTrace {
     }
 
     public void commit() {
+        // 打印日志
         if (this.driver instanceof AdvancedTracerDriver) {
             ((AdvancedTracerDriver) this.driver).addEvent(this);
         } else {

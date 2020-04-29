@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,20 +19,19 @@
 package org.apache.curator.framework.state;
 
 /**
- * Recipes should use the configured error policy to decide how to handle
- * errors such as {@link ConnectionState} changes.
+ * Recipes should use the configured error policy to decide how to handle errors such as {@link ConnectionState} changes.
  *
  * @since 3.0.0
  */
-public interface ConnectionStateErrorPolicy
-{
+public interface ConnectionStateErrorPolicy {
+
     /**
-     * Returns true if the given state should cause the recipe to
-     * act as though the connection has been lost. i.e. locks should
-     * exit, etc.
+     * Returns true if the given state should cause the recipe to act as though the connection has been lost.
+     * i.e. locks should exit, etc.
      *
      * @param state the state
      * @return true/false
      */
     boolean isErrorState(ConnectionState state);
+
 }

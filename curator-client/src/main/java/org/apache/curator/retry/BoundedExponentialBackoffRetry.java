@@ -25,7 +25,7 @@ import com.google.common.annotations.VisibleForTesting;
  */
 public class BoundedExponentialBackoffRetry extends ExponentialBackoffRetry {
 
-    /** 最大时间限制，超过改时间还未重试成功，则放弃重试 */
+    /** 单次重试的最大时间限制 */
     private final int maxSleepTimeMs;
 
     /**

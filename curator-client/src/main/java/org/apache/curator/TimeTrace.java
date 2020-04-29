@@ -30,6 +30,7 @@ public class TimeTrace {
     /** 计时器名称 */
     private final String name;
     private final TracerDriver driver;
+    /** 实例创建的时间 */
     private final long startTimeNanos = System.nanoTime();
 
     /**

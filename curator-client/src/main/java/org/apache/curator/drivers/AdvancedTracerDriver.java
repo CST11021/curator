@@ -21,7 +21,7 @@ package org.apache.curator.drivers;
 import java.util.concurrent.TimeUnit;
 
 /**
- *  Expose more metrics for the operations and events
+ * 公开更多有关操作和事件的指标
  */
 public abstract class AdvancedTracerDriver implements TracerDriver {
 

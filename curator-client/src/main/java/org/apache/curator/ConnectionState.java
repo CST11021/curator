@@ -51,22 +51,27 @@ class ConnectionState implements Watcher, Closeable {
     private static final int MAX_BACKGROUND_EXCEPTIONS = 10;
     private static final boolean LOG_EVENTS = Boolean.getBoolean(DebugUtils.PROPERTY_LOG_EVENTS);
 
+    /** 用于提供ZooKeeper连接字符串等信息 */
     private final HandleHolder handleHolder;
-    /** 表示该zk客户端是否已经连接上了zk服务 */
-    private final AtomicBoolean isConnected = new AtomicBoolean(false);
-    private final AtomicInteger lastNegotiatedSessionTimeoutMs = new AtomicInteger(0);
     /** 用于提供ZooKeeper连接字符串等信息 */
     private final EnsembleProvider ensembleProvider;
+    /** 表示该zk客户端是否已经连接上了zk服务 */
+    private final AtomicBoolean isConnected = new AtomicBoolean(false);
+    /** 表示最后经过与zk服务端协商过后的session超时时间 */
+    private final AtomicInteger lastNegotiatedSessionTimeoutMs = new AtomicInteger(0);
     /** session超时时间 */
     private final int sessionTimeoutMs;
     /** 连接超时时间 */
     private final int connectionTimeoutMs;
+    /** 用于关键事件（比如连接断开、超时等）发生时，打印相应的日志 */
     private final AtomicReference<TracerDriver> tracer;
     private final ConnectionHandlingPolicy connectionHandlingPolicy;
+    /** 用于保存后台异步执行的异常 */
     private final Queue<Exception> backgroundExceptions = new ConcurrentLinkedQueue<Exception>();
     private final Queue<Watcher> parentWatchers = new ConcurrentLinkedQueue<Watcher>();
+    /** 每次尝试连接zk服务时，该计数+1 */
     private final AtomicLong instanceIndex = new AtomicLong();
-    /** 表示该客户端连接上了zk服务器的开始时间 */
+    /** 表示该客户端尝试连接zk服务器的开始时间 */
     private volatile long connectionStartMs = 0;
 
 
@@ -103,21 +108,46 @@ class ConnectionState implements Watcher, Closeable {
         return handleHolder.getZooKeeper();
     }
 
-    boolean isConnected() {
-        return isConnected.get();
-    }
 
+
+    /**
+     * 启动连接实例：尝试开始连接zk服务
+     *
+     * @throws Exception
+     */
     void start() throws Exception {
         log.debug("Starting");
         ensembleProvider.start();
         reset();
+    }
+    /**
+     * 重置连接状态，并尝试开始连接zk服务
+     *
+     * @throws Exception
+     */
+    synchronized void reset() throws Exception {
+        log.debug("reset");
+
+        // 每次尝试连接zk服务时，该计数+1
+        instanceIndex.incrementAndGet();
+        isConnected.set(false);
+        connectionStartMs = System.currentTimeMillis();
+        // 关闭和重置连接zk
+        handleHolder.closeAndReset();
+        // 开始连接zk
+        handleHolder.getZooKeeper();
     }
 
     @Override
     public void close() throws IOException {
         close(0);
     }
-
+    /**
+     * 等待相应的时间后，关闭连接
+     *
+     * @param waitForShutdownTimeoutMs
+     * @throws IOException
+     */
     public void close(int waitForShutdownTimeoutMs) throws IOException {
         log.debug("Closing");
 
@@ -132,28 +162,18 @@ class ConnectionState implements Watcher, Closeable {
         }
     }
 
-    void addParentWatcher(Watcher watcher) {
-        parentWatchers.offer(watcher);
-    }
-
-    void removeParentWatcher(Watcher watcher) {
-        parentWatchers.remove(watcher);
-    }
-
-    long getInstanceIndex() {
-        return instanceIndex.get();
-    }
-
-    int getLastNegotiatedSessionTimeoutMs() {
-        return lastNegotiatedSessionTimeoutMs.get();
-    }
-
+    /**
+     * 处理监听事件
+     *
+     * @param event
+     */
     @Override
     public void process(WatchedEvent event) {
         if (LOG_EVENTS) {
             log.debug("ConnectState watcher: " + event);
         }
 
+        // 没有任何节点，表示创建连接成功(客户端与服务器端创建连接成功后没有任何节点信息)
         if (event.getType() == Watcher.Event.EventType.None) {
             boolean wasConnected = isConnected.get();
             boolean newIsConnected = checkState(event.getState(), wasConnected);
@@ -174,23 +194,10 @@ class ConnectionState implements Watcher, Closeable {
         }
     }
 
-    EnsembleProvider getEnsembleProvider() {
-        return ensembleProvider;
-    }
-
-    synchronized void reset() throws Exception {
-        log.debug("reset");
-
-        instanceIndex.incrementAndGet();
-
-        isConnected.set(false);
-        connectionStartMs = System.currentTimeMillis();
-        handleHolder.closeAndReset();
-        handleHolder.getZooKeeper();   // initiate connection
-    }
-
     private synchronized void checkTimeouts() throws Exception {
         final AtomicReference<String> newConnectionString = new AtomicReference<>();
+
+        // 获取当前的连接字符串，
         Callable<String> hasNewConnectionString = new Callable<String>() {
             @Override
             public String call() {
@@ -200,6 +207,7 @@ class ConnectionState implements Watcher, Closeable {
         };
         int lastNegotiatedSessionTimeoutMs = getLastNegotiatedSessionTimeoutMs();
         int useSessionTimeoutMs = (lastNegotiatedSessionTimeoutMs > 0) ? lastNegotiatedSessionTimeoutMs : sessionTimeoutMs;
+
         ConnectionHandlingPolicy.CheckTimeoutsResult result = connectionHandlingPolicy.checkTimeouts(hasNewConnectionString, connectionStartMs, useSessionTimeoutMs, connectionTimeoutMs);
         switch (result) {
             default:
@@ -240,7 +248,7 @@ class ConnectionState implements Watcher, Closeable {
     }
 
     /**
-     * Return the current session id
+     * 返回当前会话ID
      */
     public long getSessionId() {
         long sessionId = 0;
@@ -255,28 +263,40 @@ class ConnectionState implements Watcher, Closeable {
         return sessionId;
     }
 
+    /**
+     * 检查当前zk客户端的连接状态
+     *
+     * @param state
+     * @param wasConnected
+     * @return
+     */
     private boolean checkState(Event.KeeperState state, boolean wasConnected) {
         boolean isConnected = wasConnected;
         boolean checkNewConnectionString = true;
         switch (state) {
             default:
+
+            // 连接断开了
             case Disconnected: {
                 isConnected = false;
                 break;
             }
 
+            // 连接上zk服务
             case SyncConnected:
             case ConnectedReadOnly: {
                 isConnected = true;
                 break;
             }
 
+            // 认证失败
             case AuthFailed: {
                 isConnected = false;
                 log.error("Authentication failed");
                 break;
             }
 
+            // session超时
             case Expired: {
                 isConnected = false;
                 checkNewConnectionString = false;
@@ -284,6 +304,7 @@ class ConnectionState implements Watcher, Closeable {
                 break;
             }
 
+            // sasl认证失败
             case SaslAuthenticated: {
                 // NOP
                 break;
@@ -326,6 +347,9 @@ class ConnectionState implements Watcher, Closeable {
         }
     }
 
+    /**
+     * 处理zk客户端session过期的情况：如果session过期，这里会尝试重连
+     */
     private void handleExpiredSession() {
         log.warn("Session expired event received");
         new EventTrace("session-expired", tracer.get(), getSessionId()).commit();
@@ -338,6 +362,34 @@ class ConnectionState implements Watcher, Closeable {
         }
     }
 
+
+
+
+    // getter ...
+
+    long getInstanceIndex() {
+        return instanceIndex.get();
+    }
+    int getLastNegotiatedSessionTimeoutMs() {
+        return lastNegotiatedSessionTimeoutMs.get();
+    }
+    EnsembleProvider getEnsembleProvider() {
+        return ensembleProvider;
+    }
+    boolean isConnected() {
+        return isConnected.get();
+    }
+    void addParentWatcher(Watcher watcher) {
+        parentWatchers.offer(watcher);
+    }
+    void removeParentWatcher(Watcher watcher) {
+        parentWatchers.remove(watcher);
+    }
+    /**
+     * 保存异常到backgroundExceptions
+     *
+     * @param e
+     */
     @SuppressWarnings({"ThrowableResultOfMethodCallIgnored"})
     private void queueBackgroundException(Exception e) {
         while (backgroundExceptions.size() >= MAX_BACKGROUND_EXCEPTIONS) {
@@ -345,4 +397,5 @@ class ConnectionState implements Watcher, Closeable {
         }
         backgroundExceptions.offer(e);
     }
+
 }

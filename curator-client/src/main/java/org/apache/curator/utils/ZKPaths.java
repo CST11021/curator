@@ -33,30 +33,16 @@ import java.util.Collections;
 import java.util.List;
 
 public class ZKPaths {
+
     /**
      * Zookeeper's path separator character.
      */
     public static final String PATH_SEPARATOR = "/";
-
     private static final char PATH_SEPARATOR_CHAR = '/';
-
     private static final CreateMode NON_CONTAINER_MODE = CreateMode.PERSISTENT;
-
-    /**
-     * @return {@link CreateMode#CONTAINER} if the ZK JAR supports it. Otherwise {@link CreateMode#PERSISTENT}
-     */
-    public static CreateMode getContainerCreateMode() {
-        return CreateModeHolder.containerCreateMode;
-    }
-
-    /**
-     * Returns true if the version of ZooKeeper client in use supports containers
-     *
-     * @return true/false
-     */
-    public static boolean hasContainerSupport() {
-        return getContainerCreateMode() != NON_CONTAINER_MODE;
-    }
+    private static final Splitter PATH_SPLITTER = Splitter.on(PATH_SEPARATOR_CHAR).omitEmptyStrings();
+    /** 硬编码 in {@link org.apache.zookeeper.server.PrepRequestProcessor} */
+    static final int SEQUENTIAL_SUFFIX_DIGITS = 10;
 
     private static class CreateModeHolder {
         private static final Logger log = LoggerFactory.getLogger(ZKPaths.class);
@@ -73,54 +59,6 @@ public class ZKPaths {
             containerCreateMode = localCreateMode;
         }
     }
-
-    /**
-     * Apply the namespace to the given path
-     *
-     * @param namespace namespace (can be null)
-     * @param path      path
-     * @return adjusted path
-     */
-    public static String fixForNamespace(String namespace, String path) {
-        return fixForNamespace(namespace, path, false);
-    }
-
-    /**
-     * Apply the namespace to the given path
-     *
-     * @param namespace    namespace (can be null)
-     * @param path         path
-     * @param isSequential if the path is being created with a sequential flag
-     * @return adjusted path
-     */
-    public static String fixForNamespace(String namespace, String path, boolean isSequential) {
-        // Child path must be valid in and of itself.
-        PathUtils.validatePath(path, isSequential);
-
-        if (namespace != null) {
-            return makePath(namespace, path);
-        }
-        return path;
-    }
-
-    /**
-     * Given a full path, return the node name. i.e. "/one/two/three" will return "three"
-     *
-     * @param path the path
-     * @return the node
-     */
-    public static String getNodeFromPath(String path) {
-        PathUtils.validatePath(path);
-        int i = path.lastIndexOf(PATH_SEPARATOR_CHAR);
-        if (i < 0) {
-            return path;
-        }
-        if ((i + 1) >= path.length()) {
-            return "";
-        }
-        return path.substring(i + 1);
-    }
-
     /**
      * 用于封装对应的路径和节点：例如：“ /一/二/三” 节点封装为：path = “ /一/二” node = “三”
      */
@@ -177,6 +115,73 @@ public class ZKPaths {
         }
     }
 
+
+
+    /**
+     * 获取容器节点的CreateMode类型
+     *
+     * @return {@link CreateMode#CONTAINER} if the ZK JAR supports it. Otherwise {@link CreateMode#PERSISTENT}
+     */
+    public static CreateMode getContainerCreateMode() {
+        return CreateModeHolder.containerCreateMode;
+    }
+
+    /**
+     * 如果使用中的ZooKeeper客户端版本支持容器，则返回true
+     *
+     * @return true/false
+     */
+    public static boolean hasContainerSupport() {
+        return getContainerCreateMode() != NON_CONTAINER_MODE;
+    }
+
+    /**
+     * 将名称空间应用于给定路径
+     *
+     * @param namespace namespace (can be null)
+     * @param path      path
+     * @return adjusted path
+     */
+    public static String fixForNamespace(String namespace, String path) {
+        return fixForNamespace(namespace, path, false);
+    }
+    /**
+     * 将名称空间应用于给定路径
+     *
+     * @param namespace    namespace (can be null)
+     * @param path         path
+     * @param isSequential if the path is being created with a sequential flag
+     * @return adjusted path
+     */
+    public static String fixForNamespace(String namespace, String path, boolean isSequential) {
+        // Child path must be valid in and of itself.
+        PathUtils.validatePath(path, isSequential);
+
+        if (namespace != null) {
+            return makePath(namespace, path);
+        }
+        return path;
+    }
+
+
+
+    /**
+     * 给定完整路径，返回节点名称。 i.e. "/one/two/three" will return "three"
+     *
+     * @param path the path
+     * @return the node
+     */
+    public static String getNodeFromPath(String path) {
+        PathUtils.validatePath(path);
+        int i = path.lastIndexOf(PATH_SEPARATOR_CHAR);
+        if (i < 0) {
+            return path;
+        }
+        if ((i + 1) >= path.length()) {
+            return "";
+        }
+        return path.substring(i + 1);
+    }
     /**
      * 给定完整路径，返回节点名称及其路径。即“ /一/二/三”将返回{“ /一/二”，“三”}
      *
@@ -197,8 +202,7 @@ public class ZKPaths {
         return new PathAndNode(parentPath, node);
     }
 
-    // Hardcoded in {@link org.apache.zookeeper.server.PrepRequestProcessor}
-    static final int SEQUENTIAL_SUFFIX_DIGITS = 10;
+
 
     /**
      * Extracts the ten-digit suffix from a sequential znode path. Does not currently perform validation on the
@@ -212,8 +216,6 @@ public class ZKPaths {
         return length > SEQUENTIAL_SUFFIX_DIGITS ? path.substring(length - SEQUENTIAL_SUFFIX_DIGITS) : path;
     }
 
-    private static final Splitter PATH_SPLITTER = Splitter.on(PATH_SEPARATOR_CHAR).omitEmptyStrings();
-
     /**
      * Given a full path, return the the individual parts, without slashes.
      * The root path will return an empty list.
@@ -226,48 +228,7 @@ public class ZKPaths {
         return PATH_SPLITTER.splitToList(path);
     }
 
-    /**
-     * Make sure all the nodes in the path are created. NOTE: Unlike File.mkdirs(), Zookeeper doesn't distinguish
-     * between directories and files. So, every node in the path is created. The data for each node is an empty blob
-     *
-     * @param zookeeper the client
-     * @param path      path to ensure
-     * @throws InterruptedException                 thread interruption
-     * @throws org.apache.zookeeper.KeeperException Zookeeper errors
-     */
-    public static void mkdirs(ZooKeeper zookeeper, String path) throws InterruptedException, KeeperException {
-        mkdirs(zookeeper, path, true, null, false);
-    }
-
-    /**
-     * Make sure all the nodes in the path are created. NOTE: Unlike File.mkdirs(), Zookeeper doesn't distinguish
-     * between directories and files. So, every node in the path is created. The data for each node is an empty blob
-     *
-     * @param zookeeper    the client
-     * @param path         path to ensure
-     * @param makeLastNode if true, all nodes are created. If false, only the parent nodes are created
-     * @throws InterruptedException                 thread interruption
-     * @throws org.apache.zookeeper.KeeperException Zookeeper errors
-     */
-    public static void mkdirs(ZooKeeper zookeeper, String path, boolean makeLastNode) throws InterruptedException, KeeperException {
-        mkdirs(zookeeper, path, makeLastNode, null, false);
-    }
-
-    /**
-     * Make sure all the nodes in the path are created. NOTE: Unlike File.mkdirs(), Zookeeper doesn't distinguish
-     * between directories and files. So, every node in the path is created. The data for each node is an empty blob
-     *
-     * @param zookeeper    the client
-     * @param path         path to ensure
-     * @param makeLastNode if true, all nodes are created. If false, only the parent nodes are created
-     * @param aclProvider  if not null, the ACL provider to use when creating parent nodes
-     * @throws InterruptedException                 thread interruption
-     * @throws org.apache.zookeeper.KeeperException Zookeeper errors
-     */
-    public static void mkdirs(ZooKeeper zookeeper, String path, boolean makeLastNode, InternalACLProvider aclProvider) throws InterruptedException, KeeperException {
-        mkdirs(zookeeper, path, makeLastNode, aclProvider, false);
-    }
-
+    // 核心方法
     /**
      * 确保路径中的所有节点均已创建。注意：与File.mkdirs()不同，
      * Zookeeper不会区分目录和文件。因此，将创建路径中的每个节点。每个节点的数据为空
@@ -318,9 +279,49 @@ public class ZKPaths {
         }
         while (pos < path.length());
     }
+    /**
+     * Make sure all the nodes in the path are created. NOTE: Unlike File.mkdirs(), Zookeeper doesn't distinguish
+     * between directories and files. So, every node in the path is created. The data for each node is an empty blob
+     *
+     * @param zookeeper the client
+     * @param path      path to ensure
+     * @throws InterruptedException                 thread interruption
+     * @throws org.apache.zookeeper.KeeperException Zookeeper errors
+     */
+    public static void mkdirs(ZooKeeper zookeeper, String path) throws InterruptedException, KeeperException {
+        mkdirs(zookeeper, path, true, null, false);
+    }
+    /**
+     * Make sure all the nodes in the path are created. NOTE: Unlike File.mkdirs(), Zookeeper doesn't distinguish
+     * between directories and files. So, every node in the path is created. The data for each node is an empty blob
+     *
+     * @param zookeeper    the client
+     * @param path         path to ensure
+     * @param makeLastNode if true, all nodes are created. If false, only the parent nodes are created
+     * @throws InterruptedException                 thread interruption
+     * @throws org.apache.zookeeper.KeeperException Zookeeper errors
+     */
+    public static void mkdirs(ZooKeeper zookeeper, String path, boolean makeLastNode) throws InterruptedException, KeeperException {
+        mkdirs(zookeeper, path, makeLastNode, null, false);
+    }
+    /**
+     * Make sure all the nodes in the path are created. NOTE: Unlike File.mkdirs(), Zookeeper doesn't distinguish
+     * between directories and files. So, every node in the path is created. The data for each node is an empty blob
+     *
+     * @param zookeeper    the client
+     * @param path         path to ensure
+     * @param makeLastNode if true, all nodes are created. If false, only the parent nodes are created
+     * @param aclProvider  if not null, the ACL provider to use when creating parent nodes
+     * @throws InterruptedException                 thread interruption
+     * @throws org.apache.zookeeper.KeeperException Zookeeper errors
+     */
+    public static void mkdirs(ZooKeeper zookeeper, String path, boolean makeLastNode, InternalACLProvider aclProvider) throws InterruptedException, KeeperException {
+        mkdirs(zookeeper, path, makeLastNode, aclProvider, false);
+    }
+
 
     /**
-     * Recursively deletes children of a node.
+     * 递归删除节点的子级。
      *
      * @param zookeeper  the client
      * @param path       path of the node to delete
@@ -355,8 +356,9 @@ public class ZKPaths {
         }
     }
 
+
     /**
-     * Return the children of the given path sorted by sequence number
+     * 返回给定路径的子级，按顺序号排序
      *
      * @param zookeeper the client
      * @param path      the path
@@ -388,9 +390,8 @@ public class ZKPaths {
 
         return path.toString();
     }
-
     /**
-     * Given a parent path and a list of children nodes, create a combined full path
+     * 给定父路径和子节点列表，创建组合的完整路径
      *
      * @param parent       the parent
      * @param firstChild   the first children in the path
@@ -421,6 +422,8 @@ public class ZKPaths {
             return path.toString();
         }
     }
+
+
 
     /**
      * 获取字符串长度，如果为null，返回0
@@ -484,10 +487,12 @@ public class ZKPaths {
         path.append(child, childAppendBeginIndex, childAppendEndIndex);
     }
 
-    private ZKPaths() {
-    }
-
     private static CreateMode getCreateMode(boolean asContainers) {
         return asContainers ? getContainerCreateMode() : CreateMode.PERSISTENT;
     }
+
+    private ZKPaths() {
+    }
+
+
 }

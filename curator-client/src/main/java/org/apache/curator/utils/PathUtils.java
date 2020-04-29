@@ -19,21 +19,21 @@
 package org.apache.curator.utils;
 
 /**
- * This class is copied from Apache ZooKeeper.
- * The original class is not exported by ZooKeeper bundle and thus it can't be used in OSGi.
+ * 此类是从Apache ZooKeeper复制的。
+ * ZooKeeper捆绑包未导出原始类，因此无法在OSGi中使用它。
  * See issue: https://issues.apache.org/jira/browse/ZOOKEEPER-1627
  * A temporary workaround till the issue is resolved is to keep a copy of this class locally.
  */
 public class PathUtils {
 
-    /** validate the provided znode path string
-     * @param path znode path string
-     * @param isSequential if the path is being created
-     * with a sequential flag
+    /**
+     * 验证提供的znode路径字符串
+     *
+     * @param path         znode path string
+     * @param isSequential if the path is being created with a sequential flag
      * @throws IllegalArgumentException if the path is invalid
      */
-    public static void validatePath(String path, boolean isSequential)
-            throws IllegalArgumentException {
+    public static void validatePath(String path, boolean isSequential) throws IllegalArgumentException {
         validatePath(isSequential ? path + "1" : path);
     }
 
@@ -103,4 +103,5 @@ public class PathUtils {
 
         return path;
     }
+
 }
